@@ -1,0 +1,34 @@
+{
+  "name": "mcp-inspect",
+  "version": "1.0.0",
+  "description": "MCP Inspector (TUI)",
+  "type": "module",
+  "main": "dist/tui.js",
+  "bin": {
+    "mcp-inspect": "./dist/tui.js"
+  },
+  "scripts": {
+    "start": "tsx tui.tsx",
+    "build": "tsc",
+    "dev": "tsx tui.tsx",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "inspector",
+    "tui",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ink": "^6.6.0",
+    "react": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.2.7",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
