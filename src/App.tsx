@@ -281,19 +281,20 @@ function App({ configFile }: AppProps) {
     // Clear all data when connecting/reconnecting to start fresh
     clearHistory(serverName);
     
-    // Set status to connecting immediately to prevent jittering
+    // Clear stderr logs BEFORE connecting
     setServerStates(prev => ({
       ...prev,
       [serverName]: {
+        ...(prev[serverName] || {
+          status: 'disconnected' as const,
+          error: null,
+          capabilities: {},
+          resources: [],
+          prompts: [],
+          tools: [],
+        }),
         status: 'connecting' as const,
-        error: null,
-        capabilities: {},
-        serverInfo: undefined,
-        instructions: undefined,
-        resources: [],
-        prompts: [],
-        tools: [],
-        stderrLogs: [],
+        stderrLogs: [], // Clear logs before connecting
       },
     }));
     
@@ -370,7 +371,7 @@ function App({ configFile }: AppProps) {
       }
 
       // Update server state - use captured serverName to ensure we update the correct server
-      // Clear all previous data and set fresh data from connection
+      // Preserve stderrLogs that were captured during connection (after we cleared them before connecting)
       setServerStates(prev => ({
         ...prev,
         [serverName]: {
@@ -382,7 +383,7 @@ function App({ configFile }: AppProps) {
           resources,
           prompts,
           tools,
-          stderrLogs: [], // Start fresh - stderr will accumulate from this point
+          stderrLogs: prev[serverName]?.stderrLogs || [], // Preserve logs captured during connection
         },
       }));
     } catch (error) {
