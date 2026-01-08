@@ -703,7 +703,7 @@ function App({ configFile }: AppProps) {
       }
     } else {
       // Exit accelerators
-      if (input.toLowerCase() === 'x' && !key.ctrl && !key.meta) {
+      if (key.escape) {
         process.exit(0);
       }
       
@@ -894,6 +894,11 @@ function App({ configFile }: AppProps) {
                 </Box>
               );
             })}
+          </Box>
+          
+          {/* Fixed footer */}
+          <Box flexShrink={0} height={1} justifyContent="center" backgroundColor="gray">
+            <Text bold color="white">ESC to exit</Text>
           </Box>
         </Box>
 

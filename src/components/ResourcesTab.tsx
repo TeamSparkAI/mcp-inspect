@@ -112,44 +112,49 @@ export function ResourcesTab({ resources, client, width, height, onCountChange, 
       {/* Resource Details */}
       <Box width={detailWidth} height={height} paddingX={1} flexDirection="column" overflow="hidden">
         {selectedResource ? (
-          <Box flexDirection="column" paddingY={1} height={height - 2}>
-            {/* Fixed name line */}
-            <Box flexShrink={0}>
+          <>
+            {/* Fixed header */}
+            <Box flexShrink={0} paddingTop={1}>
               <Text bold backgroundColor={focusedPane === 'details' ? 'yellow' : undefined} color="cyan">
                 {selectedResource.name || selectedResource.uri}
               </Text>
             </Box>
             
-            {/* Scrollable content area */}
-            <Box flexDirection="column" height={height - 3} overflow="hidden">
-              <ScrollView ref={scrollViewRef}>
-                {/* Description */}
-                {selectedResource.description && (
-                  <>
-                    {selectedResource.description.split('\n').map((line: string, idx: number) => (
-                      <Box key={`desc-${idx}`} marginTop={idx === 0 ? 1 : 0} flexShrink={0}>
-                        <Text dimColor>{line}</Text>
-                      </Box>
-                    ))}
-                  </>
-                )}
-                
-                {/* URI */}
-                {selectedResource.uri && (
-                  <Box marginTop={1} flexShrink={0}>
-                    <Text dimColor>URI: {selectedResource.uri}</Text>
-                  </Box>
-                )}
-                
-                {/* MIME Type */}
-                {selectedResource.mimeType && (
-                  <Box marginTop={1} flexShrink={0}>
-                    <Text dimColor>MIME Type: {selectedResource.mimeType}</Text>
-                  </Box>
-                )}
-              </ScrollView>
-            </Box>
-          </Box>
+            {/* Scrollable content area - direct ScrollView with height prop like NotificationsTab */}
+            <ScrollView ref={scrollViewRef} height={height - 5}>
+              {/* Description */}
+              {selectedResource.description && (
+                <>
+                  {selectedResource.description.split('\n').map((line: string, idx: number) => (
+                    <Box key={`desc-${idx}`} marginTop={idx === 0 ? 1 : 0} flexShrink={0}>
+                      <Text dimColor>{line}</Text>
+                    </Box>
+                  ))}
+                </>
+              )}
+              
+              {/* URI */}
+              {selectedResource.uri && (
+                <Box marginTop={1} flexShrink={0}>
+                  <Text dimColor>URI: {selectedResource.uri}</Text>
+                </Box>
+              )}
+              
+              {/* MIME Type */}
+              {selectedResource.mimeType && (
+                <Box marginTop={1} flexShrink={0}>
+                  <Text dimColor>MIME Type: {selectedResource.mimeType}</Text>
+                </Box>
+              )}
+            </ScrollView>
+            
+            {/* Fixed footer - only show when details pane is focused */}
+            {focusedPane === 'details' && (
+              <Box flexShrink={0} height={1} justifyContent="center" backgroundColor="gray">
+                <Text bold color="white">↑/↓ to scroll, + to zoom</Text>
+              </Box>
+            )}
+          </>
         ) : (
           <Box paddingY={1} flexShrink={0}>
             <Text dimColor>Select a resource to view details</Text>

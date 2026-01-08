@@ -181,9 +181,9 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
         borderRight={false}
       >
         {selectedMessage ? (
-          <Box flexDirection="column" paddingY={1} height={height - 2} overflow="hidden">
+          <>
             {/* Fixed method caption only */}
-            <Box flexDirection="row" justifyContent="space-between" flexShrink={0}>
+            <Box flexDirection="row" justifyContent="space-between" flexShrink={0} paddingTop={1}>
               <Text 
                 bold 
                 color="cyan"
@@ -202,73 +202,78 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
               </Text>
             </Box>
 
-            {/* Scrollable content area - everything else scrolls */}
-            <Box flexDirection="column" height={height - 3} overflow="hidden">
-              <ScrollView ref={scrollViewRef}>
-                {/* Metadata */}
-                <Box marginTop={1} flexDirection="column" flexShrink={0}>
-                  <Text bold>Direction: {selectedMessage.direction}</Text>
-                  {selectedMessage.duration !== undefined && (
-                  <Box marginTop={1}>
-                    <Text dimColor>
-                      Duration: {selectedMessage.duration}ms
+            {/* Scrollable content area */}
+            <ScrollView ref={scrollViewRef} height={height - 5}>
+              {/* Metadata */}
+              <Box marginTop={1} flexDirection="column" flexShrink={0}>
+                <Text bold>Direction: {selectedMessage.direction}</Text>
+                {selectedMessage.duration !== undefined && (
+                <Box marginTop={1}>
+                  <Text dimColor>
+                    Duration: {selectedMessage.duration}ms
+                  </Text>
+                </Box>
+                )}
+              </Box>
+
+              {selectedMessage.direction === 'request' ? (
+                <>
+                  {/* Request label */}
+                  <Box marginTop={1} flexShrink={0}>
+                    <Text bold>Request:</Text>
+                  </Box>
+                  
+                  {/* Request content */}
+                  {JSON.stringify(selectedMessage.message, null, 2).split('\n').map((line: string, idx: number) => (
+                    <Box key={`req-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
+                      <Text dimColor>{line}</Text>
+                    </Box>
+                  ))}
+                  
+                  {/* Response section */}
+                  {selectedMessage.response ? (
+                    <>
+                      <Box marginTop={1} flexShrink={0}>
+                        <Text bold>Response:</Text>
+                      </Box>
+                      {JSON.stringify(selectedMessage.response, null, 2).split('\n').map((line: string, idx: number) => (
+                        <Box key={`resp-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
+                          <Text dimColor>{line}</Text>
+                        </Box>
+                      ))}
+                    </>
+                  ) : (
+                    <Box marginTop={1} flexShrink={0}>
+                      <Text dimColor italic>Waiting for response...</Text>
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Response or notification label */}
+                  <Box marginTop={1} flexShrink={0}>
+                    <Text bold>
+                      {selectedMessage.direction === 'response' ? 'Response:' : 'Notification:'}
                     </Text>
                   </Box>
-                  )}
-                </Box>
-
-                {selectedMessage.direction === 'request' ? (
-                  <>
-                    {/* Request label */}
-                    <Box marginTop={1} flexShrink={0}>
-                      <Text bold>Request:</Text>
+                  
+                  {/* Message content */}
+                  {JSON.stringify(selectedMessage.message, null, 2).split('\n').map((line: string, idx: number) => (
+                    <Box key={`msg-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
+                      <Text dimColor>{line}</Text>
                     </Box>
-                    
-                    {/* Request content */}
-                    {JSON.stringify(selectedMessage.message, null, 2).split('\n').map((line: string, idx: number) => (
-                      <Box key={`req-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
-                        <Text dimColor>{line}</Text>
-                      </Box>
-                    ))}
-                    
-                    {/* Response section */}
-                    {selectedMessage.response ? (
-                      <>
-                        <Box marginTop={1} flexShrink={0}>
-                          <Text bold>Response:</Text>
-                        </Box>
-                        {JSON.stringify(selectedMessage.response, null, 2).split('\n').map((line: string, idx: number) => (
-                          <Box key={`resp-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
-                            <Text dimColor>{line}</Text>
-                          </Box>
-                        ))}
-                      </>
-                    ) : (
-                      <Box marginTop={1} flexShrink={0}>
-                        <Text dimColor italic>Waiting for response...</Text>
-                      </Box>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {/* Response or notification label */}
-                    <Box marginTop={1} flexShrink={0}>
-                      <Text bold>
-                        {selectedMessage.direction === 'response' ? 'Response:' : 'Notification:'}
-                      </Text>
-                    </Box>
-                    
-                    {/* Message content */}
-                    {JSON.stringify(selectedMessage.message, null, 2).split('\n').map((line: string, idx: number) => (
-                      <Box key={`msg-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
-                        <Text dimColor>{line}</Text>
-                      </Box>
-                    ))}
-                  </>
-                )}
-              </ScrollView>
-            </Box>
-          </Box>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+            
+            {/* Fixed footer - only show when details pane is focused */}
+            {focusedPane === 'details' && (
+              <Box flexShrink={0} height={1} justifyContent="center" backgroundColor="gray">
+                <Text bold color="white">↑/↓ to scroll, + to zoom</Text>
+              </Box>
+            )}
+          </>
         ) : (
           <Box paddingY={1} flexShrink={0}>
             <Text dimColor>Select a message to view details</Text>

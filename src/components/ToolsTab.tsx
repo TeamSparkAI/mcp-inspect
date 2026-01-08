@@ -130,9 +130,9 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
       {/* Tool Details */}
       <Box width={detailWidth} height={height} paddingX={1} flexDirection="column" overflow="hidden">
         {selectedTool ? (
-          <Box flexDirection="column" paddingY={1} height={height - 2}>
-            {/* Fixed name line */}
-            <Box flexShrink={0} flexDirection="row" justifyContent="space-between">
+          <>
+            {/* Fixed header */}
+            <Box flexShrink={0} flexDirection="row" justifyContent="space-between" paddingTop={1}>
               <Text bold backgroundColor={focusedPane === 'details' ? 'yellow' : undefined} color="cyan">
                 {selectedTool.name}
               </Text>
@@ -145,36 +145,41 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
               )}
             </Box>
             
-            {/* Scrollable content area - exact height: height - 2 (parent) - 2 (paddingY) - 1 (name) = height - 5 */}
-            <Box flexDirection="column" height={height - 5} overflow="hidden">
-              <ScrollView ref={scrollViewRef}>
-                {/* Description */}
-                {selectedTool.description && (
-                  <>
-                    {selectedTool.description.split('\n').map((line: string, idx: number) => (
-                      <Box key={`desc-${idx}`} marginTop={idx === 0 ? 1 : 0} flexShrink={0}>
-                        <Text dimColor>{line}</Text>
-                      </Box>
-                    ))}
-                  </>
-                )}
-                
-                {/* Input Schema */}
-                {selectedTool.inputSchema && (
-                  <>
-                    <Box marginTop={1} flexShrink={0}>
-                      <Text bold>Input Schema:</Text>
+            {/* Scrollable content area - direct ScrollView with height prop like NotificationsTab */}
+            <ScrollView ref={scrollViewRef} height={height - 5}>
+              {/* Description */}
+              {selectedTool.description && (
+                <>
+                  {selectedTool.description.split('\n').map((line: string, idx: number) => (
+                    <Box key={`desc-${idx}`} marginTop={idx === 0 ? 1 : 0} flexShrink={0}>
+                      <Text dimColor>{line}</Text>
                     </Box>
-                    {JSON.stringify(selectedTool.inputSchema, null, 2).split('\n').map((line: string, idx: number) => (
-                      <Box key={`schema-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
-                        <Text dimColor>{line}</Text>
-                      </Box>
-                    ))}
-                  </>
-                )}
-              </ScrollView>
-            </Box>
-          </Box>
+                  ))}
+                </>
+              )}
+              
+              {/* Input Schema */}
+              {selectedTool.inputSchema && (
+                <>
+                  <Box marginTop={1} flexShrink={0}>
+                    <Text bold>Input Schema:</Text>
+                  </Box>
+                  {JSON.stringify(selectedTool.inputSchema, null, 2).split('\n').map((line: string, idx: number) => (
+                    <Box key={`schema-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
+                      <Text dimColor>{line}</Text>
+                    </Box>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+            
+            {/* Fixed footer - only show when details pane is focused */}
+            {focusedPane === 'details' && (
+              <Box flexShrink={0} height={1} justifyContent="center" backgroundColor="gray">
+                <Text bold color="white">↑/↓ to scroll, + to zoom</Text>
+              </Box>
+            )}
+          </>
         ) : (
           <Box paddingY={1} flexShrink={0}>
             <Text dimColor>Select a tool to view details</Text>
