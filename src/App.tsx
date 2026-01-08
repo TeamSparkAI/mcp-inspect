@@ -14,6 +14,7 @@ import { PromptsTab } from './components/PromptsTab.js';
 import { ToolsTab } from './components/ToolsTab.js';
 import { NotificationsTab } from './components/NotificationsTab.js';
 import { HistoryTab } from './components/HistoryTab.js';
+import { ToolTestModal } from './components/ToolTestModal.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
@@ -50,6 +51,12 @@ function App({ configFile }: AppProps) {
     messages?: number;
     logging?: number;
   }>({});
+  
+  // Tool test modal state
+  const [toolTestModal, setToolTestModal] = useState<{
+    tool: any;
+    client: Client | null;
+  } | null>(null);
   
   // Server state management - store state for all servers
   const [serverStates, setServerStates] = useState<Record<string, ServerState>>({});
@@ -497,6 +504,11 @@ function App({ configFile }: AppProps) {
   }, [selectedServerConfig, activeTab, getServerType]);
 
   useInput((input: string, key: Key) => {
+    // Don't process input when modal is open
+    if (toolTestModal) {
+      return;
+    }
+
     if (key.ctrl && input === 'c') {
       process.exit();
     }
@@ -832,6 +844,7 @@ function App({ configFile }: AppProps) {
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, tools: count }))}
                     focusedPane={focus === 'tabContentDetails' ? 'details' : focus === 'tabContentList' ? 'list' : null}
+                    onTestTool={(tool) => setToolTestModal({ tool, client: currentServerClient })}
                   />
                 )}
                 {activeTab === 'messages' && (
@@ -872,6 +885,17 @@ function App({ configFile }: AppProps) {
             <Text color="gray">█</Text>
           </Text>
         </Box>
+      )}
+
+      {/* Tool Test Modal - rendered at App level for full screen overlay */}
+      {toolTestModal && (
+        <ToolTestModal
+          tool={toolTestModal.tool}
+          client={toolTestModal.client}
+          width={dimensions.width}
+          height={dimensions.height}
+          onClose={() => setToolTestModal(null)}
+        />
       )}
     </Box>
   );

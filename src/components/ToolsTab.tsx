@@ -10,9 +10,10 @@ interface ToolsTabProps {
   height: number;
   onCountChange?: (count: number) => void;
   focusedPane?: 'list' | 'details' | null;
+  onTestTool?: (tool: any) => void;
 }
 
-export function ToolsTab({ tools, client, width, height, onCountChange, focusedPane = null }: ToolsTabProps) {
+export function ToolsTab({ tools, client, width, height, onCountChange, focusedPane = null, onTestTool }: ToolsTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -33,6 +34,14 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
     }
     
     if (focusedPane === 'details') {
+      // Handle 'e' key to test tool
+      if (input === 'e' || input === 'E') {
+        if (selectedTool && client && onTestTool) {
+          onTestTool(selectedTool);
+        }
+        return;
+      }
+      
       // Scroll the details pane using ink-scroll-view
       if (key.upArrow) {
         scrollViewRef.current?.scrollBy(-1);
@@ -118,10 +127,17 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
         {selectedTool ? (
           <Box flexDirection="column" paddingY={1} height={height - 2}>
             {/* Fixed name line */}
-            <Box flexShrink={0}>
+            <Box flexShrink={0} flexDirection="row" justifyContent="space-between">
               <Text bold backgroundColor={focusedPane === 'details' ? 'yellow' : undefined} color="cyan">
                 {selectedTool.name}
               </Text>
+              {client && (
+                <Text>
+                  <Text color="cyan" bold>
+                    [T<Text underline>e</Text>st]
+                  </Text>
+                </Text>
+              )}
             </Box>
             
             {/* Scrollable content area - exact height: height - 2 (parent) - 2 (paddingY) - 1 (name) = height - 5 */}
