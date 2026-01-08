@@ -111,7 +111,7 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
             bold
             backgroundColor={focusedPane === 'messages' ? 'yellow' : undefined}
           >
-            History ({messages.length})
+                Messages ({messages.length})
           </Text>
         </Box>
         

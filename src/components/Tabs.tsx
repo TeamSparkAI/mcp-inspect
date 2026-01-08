@@ -1,31 +1,36 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 
-export type TabType = 'resources' | 'prompts' | 'tools' | 'notifications' | 'history';
+export type TabType = 'info' | 'resources' | 'prompts' | 'tools' | 'messages' | 'logging';
 
 interface TabsProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
   width: number;
   counts?: {
+    info?: number;
     resources?: number;
     prompts?: number;
     tools?: number;
-    notifications?: number;
-    history?: number;
+    messages?: number;
+    logging?: number;
   };
   focused?: boolean;
+  showLogging?: boolean;
 }
 
 export const tabs: { id: TabType; label: string; accelerator: string }[] = [
+  { id: 'info', label: 'Info', accelerator: 'i' },
   { id: 'resources', label: 'Resources', accelerator: 'r' },
   { id: 'prompts', label: 'Prompts', accelerator: 'p' },
   { id: 'tools', label: 'Tools', accelerator: 't' },
-  { id: 'notifications', label: 'Notifications', accelerator: 'n' },
-  { id: 'history', label: 'History', accelerator: 'h' },
+  { id: 'messages', label: 'Messages', accelerator: 'm' },
+  { id: 'logging', label: 'Logging', accelerator: 'l' },
 ];
 
-export function Tabs({ activeTab, onTabChange, width, counts = {}, focused = false }: TabsProps) {
+export function Tabs({ activeTab, onTabChange, width, counts = {}, focused = false, showLogging = true }: TabsProps) {
+  const visibleTabs = showLogging ? tabs : tabs.filter(tab => tab.id !== 'logging');
+  
   return (
     <Box 
       width={width} 
@@ -35,9 +40,8 @@ export function Tabs({ activeTab, onTabChange, width, counts = {}, focused = fal
       borderRight={false} 
       borderBottom={true}
       flexDirection="row"
-      paddingBottom={1}
     >
-      {tabs.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive = activeTab === tab.id;
         const count = counts[tab.id];
         const countText = count !== undefined ? ` (${count})` : '';

@@ -3,11 +3,12 @@ import { Box, Text, useInput, type Key } from 'ink';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
-import type { MCPConfig, ServerState } from './types.js';
+import type { MCPConfig, ServerState, MCPServerConfig, StdioServerConfig, SseServerConfig, StreamableHttpServerConfig } from './types.js';
 import type { FocusArea } from './types/focus.js';
 import { useMCPClient, LoggingProxyTransport } from './hooks/useMCPClient.js';
 import { useMessageTracking } from './hooks/useMessageTracking.js';
 import { Tabs, type TabType, tabs as tabList } from './components/Tabs.js';
+import { InfoTab } from './components/InfoTab.js';
 import { ResourcesTab } from './components/ResourcesTab.js';
 import { PromptsTab } from './components/PromptsTab.js';
 import { ToolsTab } from './components/ToolsTab.js';
@@ -15,7 +16,10 @@ import { NotificationsTab } from './components/NotificationsTab.js';
 import { HistoryTab } from './components/HistoryTab.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { Client as MCPClient } from '@modelcontextprotocol/sdk/client/index.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -36,14 +40,15 @@ function App({ configFile }: AppProps) {
   const [command, setCommand] = useState('');
   const [showCommand, setShowCommand] = useState(false);
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('resources');
+  const [activeTab, setActiveTab] = useState<TabType>('info');
   const [focus, setFocus] = useState<FocusArea>('serverList');
   const [tabCounts, setTabCounts] = useState<{
+    info?: number;
     resources?: number;
     prompts?: number;
     tools?: number;
-    notifications?: number;
-    history?: number;
+    messages?: number;
+    logging?: number;
   }>({});
   
   // Server state management - store state for all servers
@@ -51,7 +56,7 @@ function App({ configFile }: AppProps) {
   const [serverClients, setServerClients] = useState<Record<string, Client | null>>({});
   
   // Message tracking
-  const { history: messageHistory, trackRequest, trackResponse, trackNotification } = useMessageTracking();
+  const { history: messageHistory, trackRequest, trackResponse, trackNotification, clearHistory } = useMessageTracking();
   const [dimensions, setDimensions] = useState({
     width: process.stdout.columns || 80,
     height: process.stdout.rows || 24,
@@ -96,6 +101,14 @@ function App({ configFile }: AppProps) {
   const serverNames = Object.keys(mcpConfig.mcpServers);
   const selectedServerConfig = selectedServer ? mcpConfig.mcpServers[selectedServer] : null;
   
+  // Preselect the first server on mount
+  useEffect(() => {
+    if (serverNames.length > 0 && selectedServer === null) {
+      setSelectedServer(serverNames[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
   // Initialize server states for all configured servers on mount
   useEffect(() => {
     const initialStates: Record<string, ServerState> = {};
@@ -105,9 +118,12 @@ function App({ configFile }: AppProps) {
           status: 'disconnected',
           error: null,
           capabilities: {},
+          serverInfo: undefined,
+          instructions: undefined,
           resources: [],
           prompts: [],
           tools: [],
+          stderrLogs: [],
         };
       }
     }
@@ -134,6 +150,111 @@ function App({ configFile }: AppProps) {
     messageTracking
   );
 
+  // Helper function to determine transport type (defaults to stdio)
+  const getServerType = useCallback((config: MCPServerConfig): 'stdio' | 'sse' | 'streamableHttp' => {
+    if ('type' in config) {
+      if (config.type === 'sse' || config.type === 'streamableHttp') {
+        return config.type;
+      }
+    }
+    return 'stdio';
+  }, []);
+
+  // Helper function to create the appropriate transport
+  const createTransport = useCallback((config: MCPServerConfig, serverName: string): { transport: Transport; baseTransport?: StdioClientTransport } => {
+    const serverType = getServerType(config);
+    
+    if (serverType === 'stdio') {
+      const stdioConfig = config as StdioServerConfig;
+      const baseTransport = new StdioClientTransport({
+        command: stdioConfig.command,
+        args: stdioConfig.args || [],
+        env: stdioConfig.env,
+        cwd: stdioConfig.cwd,
+        stderr: 'pipe',
+      });
+
+      // Capture stderr from stdio transport - set up listener immediately after creation
+      if (baseTransport.stderr) {
+        baseTransport.stderr.on('data', (data: Buffer) => {
+          const logEntry = data.toString().trim();
+          if (logEntry) {
+            setServerStates(prev => {
+              const existingState = prev[serverName];
+              if (!existingState) {
+                // Initialize state if it doesn't exist yet
+                return {
+                  ...prev,
+                  [serverName]: {
+                    status: 'connecting' as const,
+                    error: null,
+                    capabilities: {},
+                    serverInfo: undefined,
+                    instructions: undefined,
+                    resources: [],
+                    prompts: [],
+                    tools: [],
+                    stderrLogs: [{ timestamp: new Date(), message: logEntry }],
+                  },
+                };
+              }
+              
+              return {
+                ...prev,
+                [serverName]: {
+                  ...existingState,
+                  stderrLogs: [
+                    ...(existingState.stderrLogs || []),
+                    { timestamp: new Date(), message: logEntry }
+                  ].slice(-1000), // Keep last 1000 log entries
+                },
+              };
+            });
+          }
+        });
+      }
+
+      return { transport: baseTransport, baseTransport };
+    } else if (serverType === 'sse') {
+      const sseConfig = config as SseServerConfig;
+      const url = new URL(sseConfig.url);
+      
+      // Merge headers and requestInit
+      const eventSourceInit: Record<string, unknown> = {
+        ...sseConfig.eventSourceInit,
+        ...(sseConfig.headers && { headers: sseConfig.headers }),
+      };
+      
+      const requestInit: RequestInit = {
+        ...sseConfig.requestInit,
+        ...(sseConfig.headers && { headers: sseConfig.headers }),
+      };
+      
+      const transport = new SSEClientTransport(url, {
+        eventSourceInit,
+        requestInit,
+      });
+      
+      return { transport };
+    } else {
+      // streamableHttp
+      const httpConfig = config as StreamableHttpServerConfig;
+      const url = new URL(httpConfig.url);
+      
+      // Merge headers and requestInit
+      const requestInit: RequestInit = {
+        ...httpConfig.requestInit,
+        ...(httpConfig.headers && { headers: httpConfig.headers }),
+      };
+      
+      const transport = new StreamableHTTPClientTransport(url, {
+        requestInit,
+      });
+      
+      return { transport };
+    }
+  }, [getServerType]);
+
   // Connect handler - connects, gets capabilities, and queries resources/prompts/tools
   const handleConnect = useCallback(async () => {
     if (!selectedServer || !selectedServerConfig) return;
@@ -142,29 +263,27 @@ function App({ configFile }: AppProps) {
     const serverName = selectedServer;
     const serverConfig = selectedServerConfig;
     
+    // Clear all data when connecting/reconnecting to start fresh
+    clearHistory(serverName);
+    
     // Set status to connecting immediately to prevent jittering
     setServerStates(prev => ({
       ...prev,
       [serverName]: {
-        ...prev[serverName] || {
-          status: 'disconnected' as const,
-          error: null,
-          capabilities: {},
-          resources: [],
-          prompts: [],
-          tools: [],
-        },
-        status: 'connecting',
+        status: 'connecting' as const,
         error: null,
+        capabilities: {},
+        serverInfo: undefined,
+        instructions: undefined,
+        resources: [],
+        prompts: [],
+        tools: [],
+        stderrLogs: [],
       },
     }));
     
-    // Create a new client connection for this specific server
-    const baseTransport = new StdioClientTransport({
-      command: serverConfig.command,
-      args: serverConfig.args || [],
-      env: serverConfig.env,
-    });
+    // Create the appropriate transport
+    const { transport: baseTransport, baseTransport: stdioTransport } = createTransport(serverConfig, serverName);
 
     // Wrap with proxy transport if message tracking is enabled
     const transport = messageTracking
@@ -194,6 +313,14 @@ function App({ configFile }: AppProps) {
         prompts: !!serverCapabilities.prompts,
         tools: !!serverCapabilities.tools,
       };
+
+      // Get server info (name, version) and instructions
+      const serverVersion = client.getServerVersion();
+      const serverInfo = serverVersion ? {
+        name: serverVersion.name,
+        version: serverVersion.version,
+      } : undefined;
+      const instructions = client.getInstructions();
 
       // Query resources, prompts, and tools based on capabilities
       let resources: any[] = [];
@@ -228,29 +355,21 @@ function App({ configFile }: AppProps) {
       }
 
       // Update server state - use captured serverName to ensure we update the correct server
-      setServerStates(prev => {
-        const existingState = prev[serverName] || {
-          status: 'disconnected' as const,
+      // Clear all previous data and set fresh data from connection
+      setServerStates(prev => ({
+        ...prev,
+        [serverName]: {
+          status: 'connected' as const,
           error: null,
-          capabilities: {},
-          resources: [],
-          prompts: [],
-          tools: [],
-        };
-        
-        return {
-          ...prev,
-          [serverName]: {
-            ...existingState,
-            status: 'connected' as const,
-            error: null,
-            capabilities,
-            resources,
-            prompts,
-            tools,
-          },
-        };
-      });
+          capabilities,
+          serverInfo,
+          instructions,
+          resources,
+          prompts,
+          tools,
+          stderrLogs: [], // Start fresh - stderr will accumulate from this point
+        },
+      }));
     } catch (error) {
       // Make sure we clean up the client on error
       try {
@@ -289,26 +408,30 @@ function App({ configFile }: AppProps) {
       return newClients;
     });
 
+    // Preserve all data when disconnecting - only change status
     setServerStates(prev => ({
       ...prev,
       [selectedServer]: {
         ...prev[selectedServer],
         status: 'disconnected',
         error: null,
-        capabilities: {},
-        resources: [],
-        prompts: [],
-        tools: [],
+        // Keep all existing data: capabilities, serverInfo, instructions, resources, prompts, tools, stderrLogs
       },
     }));
 
-    setTabCounts(prev => ({
-      ...prev,
-      resources: 0,
-      prompts: 0,
-      tools: 0,
-    }));
-  }, [selectedServer, disconnectClient]);
+    // Update tab counts based on preserved data
+    const preservedState = serverStates[selectedServer];
+    if (preservedState) {
+      setTabCounts(prev => ({
+        ...prev,
+        resources: preservedState.resources?.length || 0,
+        prompts: preservedState.prompts?.length || 0,
+        tools: preservedState.tools?.length || 0,
+        messages: messageHistory[selectedServer]?.length || 0,
+        logging: preservedState.stderrLogs?.length || 0,
+      }));
+    }
+  }, [selectedServer, disconnectClient, serverStates, messageHistory]);
   
   const currentServerMessages = useMemo(() => 
     selectedServer ? (messageHistory[selectedServer] || []) : [],
@@ -337,7 +460,7 @@ function App({ configFile }: AppProps) {
         resources: serverState.resources?.length || 0,
         prompts: serverState.prompts?.length || 0,
         tools: serverState.tools?.length || 0,
-        history: messageHistory[selectedServer]?.length || 0,
+        messages: messageHistory[selectedServer]?.length || 0,
       });
     } else if (serverState?.status !== 'connecting') {
       // Reset counts for disconnected or error states
@@ -345,23 +468,33 @@ function App({ configFile }: AppProps) {
         resources: 0,
         prompts: 0,
         tools: 0,
-        history: messageHistory[selectedServer]?.length || 0,
+        messages: messageHistory[selectedServer]?.length || 0,
       });
     }
   }, [selectedServer, serverStates, messageHistory]);
 
   // Keep focus state consistent when switching tabs
   useEffect(() => {
-    if (activeTab === 'history') {
+    if (activeTab === 'messages') {
       if (focus === 'tabContentList' || focus === 'tabContentDetails') {
-        setFocus('historyList');
+        setFocus('messagesList');
       }
     } else {
-      if (focus === 'historyList' || focus === 'historyDetail') {
+      if (focus === 'messagesList' || focus === 'messagesDetail') {
         setFocus('tabContentList');
       }
     }
   }, [activeTab]); // intentionally not depending on focus to avoid loops
+
+  // Switch away from logging tab if server is not stdio
+  useEffect(() => {
+    if (activeTab === 'logging' && selectedServerConfig) {
+      const serverType = getServerType(selectedServerConfig);
+      if (serverType !== 'stdio') {
+        setActiveTab('info');
+      }
+    }
+  }, [selectedServerConfig, activeTab, getServerType]);
 
   useInput((input: string, key: Key) => {
     if (key.ctrl && input === 'c') {
@@ -389,10 +522,18 @@ function App({ configFile }: AppProps) {
       } else if (key.escape) {
         setCommand('');
         setShowCommand(false);
+      } else if (key.ctrl && input === 'c') {
+        // CTRL-C to exit
+        process.exit(0);
       } else if (input && !key.ctrl && !key.meta) {
         setCommand(command + input);
       }
     } else {
+      // Exit accelerators
+      if (input.toLowerCase() === 'x' && !key.ctrl && !key.meta) {
+        process.exit(0);
+      }
+      
       // Tab switching with accelerator keys (first character of tab name)
       const tabAccelerators: Record<string, TabType> = Object.fromEntries(
         tabList.map((tab: { id: TabType; label: string; accelerator: string }) => [tab.accelerator, tab.id])
@@ -403,8 +544,8 @@ function App({ configFile }: AppProps) {
       } else if (key.tab && !key.shift) {
         // Flat focus order: servers -> tabs -> list -> details -> wrap to servers
         const focusOrder: FocusArea[] =
-          activeTab === 'history'
-            ? ['serverList', 'tabs', 'historyList', 'historyDetail']
+          activeTab === 'messages'
+            ? ['serverList', 'tabs', 'messagesList', 'messagesDetail']
             : ['serverList', 'tabs', 'tabContentList', 'tabContentDetails'];
         const currentIndex = focusOrder.indexOf(focus);
         const nextIndex = (currentIndex + 1) % focusOrder.length;
@@ -412,8 +553,8 @@ function App({ configFile }: AppProps) {
       } else if (key.tab && key.shift) {
         // Reverse order: servers <- tabs <- list <- details <- wrap to servers
         const focusOrder: FocusArea[] =
-          activeTab === 'history'
-            ? ['serverList', 'tabs', 'historyList', 'historyDetail']
+          activeTab === 'messages'
+            ? ['serverList', 'tabs', 'messagesList', 'messagesDetail']
             : ['serverList', 'tabs', 'tabContentList', 'tabContentDetails'];
         const currentIndex = focusOrder.indexOf(focus);
         const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusOrder.length - 1;
@@ -441,11 +582,11 @@ function App({ configFile }: AppProps) {
           }
           return; // Handled, don't let other handlers process
         }
-        // If focus is on tabs, tabContentList, tabContentDetails, historyList, or historyDetail,
+        // If focus is on tabs, tabContentList, tabContentDetails, messagesList, or messagesDetail,
         // arrow keys will be handled by those components - don't do anything here
       } else if (focus === 'tabs' && (key.leftArrow || key.rightArrow)) {
         // Left/Right arrows switch tabs when tabs are focused
-        const tabs: TabType[] = ['resources', 'prompts', 'tools', 'notifications', 'history'];
+        const tabs: TabType[] = ['info', 'resources', 'prompts', 'tools', 'messages', 'logging'];
         const currentIndex = tabs.indexOf(activeTab);
         if (key.leftArrow) {
           const newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
@@ -454,8 +595,10 @@ function App({ configFile }: AppProps) {
           const newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
           setActiveTab(tabs[newIndex]);
         }
-      } else if (focus === 'serverList' && selectedServer) {
-        // Accelerator keys for connect/disconnect
+      }
+      
+      // Accelerator keys for connect/disconnect (work from anywhere)
+      if (selectedServer && !showCommand) {
         const serverState = serverStates[selectedServer];
         if (input.toLowerCase() === 'c' && serverState?.status === 'disconnected') {
           handleConnect();
@@ -558,10 +701,7 @@ function App({ configFile }: AppProps) {
           flexDirection="column"
           paddingX={1}
         >
-          <Box 
-            marginBottom={1} 
-            paddingY={1}
-          >
+          <Box marginTop={1} marginBottom={1}>
             <Text 
               bold
               backgroundColor={focus === 'serverList' ? 'yellow' : undefined}
@@ -603,54 +743,31 @@ function App({ configFile }: AppProps) {
             flexDirection="column"
             flexShrink={0}
           >
-            {selectedServer ? (
-              <Box flexDirection="column">
-                <Box flexDirection="row" justifyContent="space-between" alignItems="center" marginBottom={1}>
-                  <Text bold color="cyan">{selectedServer}</Text>
-                  <Box flexDirection="row" alignItems="center">
-                    {currentServerState && (
-                      <>
-                        <Text color={getStatusColor(currentServerState.status)}>
-                          {getStatusSymbol(currentServerState.status)} {currentServerState.status}
+            <Box flexDirection="column">
+              <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+                <Text bold color="cyan">{selectedServer}</Text>
+                <Box flexDirection="row" alignItems="center">
+                  {currentServerState && (
+                    <>
+                      <Text color={getStatusColor(currentServerState.status)}>
+                        {getStatusSymbol(currentServerState.status)} {currentServerState.status}
+                      </Text>
+                      <Text> </Text>
+                      {currentServerState?.status === 'disconnected' && (
+                        <Text color="cyan" bold>
+                          [<Text underline>C</Text>onnect]
                         </Text>
-                        <Text> </Text>
-                        {currentServerState?.status === 'disconnected' && (
-                          <Text color="cyan" bold>
-                            [<Text underline>C</Text>onnect]
-                          </Text>
-                        )}
-                        {(currentServerState?.status === 'connected' || currentServerState?.status === 'connecting') && (
-                          <Text color="red" bold>
-                            [<Text underline>D</Text>isconnect]
-                          </Text>
-                        )}
-                      </>
-                    )}
-                  </Box>
-                </Box>
-                <Box flexDirection="column">
-                  <Text dimColor>Command: {mcpConfig.mcpServers[selectedServer].command}</Text>
-                  {mcpConfig.mcpServers[selectedServer].args && mcpConfig.mcpServers[selectedServer].args!.length > 0 && (
-                    <Box marginTop={1}>
-                      <Text dimColor>
-                        Args: {mcpConfig.mcpServers[selectedServer].args?.join(' ')}
-                      </Text>
-                    </Box>
-                  )}
-                  {mcpConfig.mcpServers[selectedServer].env && Object.keys(mcpConfig.mcpServers[selectedServer].env || {}).length > 0 && (
-                    <Box marginTop={1}>
-                      <Text dimColor>
-                        Env: {Object.entries(mcpConfig.mcpServers[selectedServer].env || {}).map(([k, v]) => `${k}=${v}`).join(', ')}
-                      </Text>
-                    </Box>
+                      )}
+                      {(currentServerState?.status === 'connected' || currentServerState?.status === 'connecting') && (
+                        <Text color="red" bold>
+                          [<Text underline>D</Text>isconnect]
+                        </Text>
+                      )}
+                    </>
                   )}
                 </Box>
               </Box>
-            ) : (
-              <Box justifyContent="center" alignItems="center">
-                <Text dimColor>Select a server from the list to view details</Text>
-              </Box>
-            )}
+            </Box>
           </Box>
 
           {/* Tabs */}
@@ -660,6 +777,7 @@ function App({ configFile }: AppProps) {
             width={contentWidth}
             counts={tabCounts}
             focused={focus === 'tabs'}
+            showLogging={selectedServerConfig ? getServerType(selectedServerConfig) === 'stdio' : false}
           />
 
           {/* Tab Content */}
@@ -671,6 +789,16 @@ function App({ configFile }: AppProps) {
             borderRight={false}
             borderBottom={false}
           >
+            {activeTab === 'info' && (
+              <InfoTab
+                serverName={selectedServer}
+                serverConfig={selectedServerConfig}
+                serverState={currentServerState}
+                width={contentWidth}
+                height={contentHeight}
+                focused={focus === 'tabContentList' || focus === 'tabContentDetails'}
+              />
+            )}
             {currentServerState?.status === 'connected' && currentServerClient ? (
               <>
                 {activeTab === 'resources' && (
@@ -706,63 +834,32 @@ function App({ configFile }: AppProps) {
                     focusedPane={focus === 'tabContentDetails' ? 'details' : focus === 'tabContentList' ? 'list' : null}
                   />
                 )}
-                {activeTab === 'notifications' && (
-                  <NotificationsTab 
-                    client={currentServerClient} 
-                    width={contentWidth} 
-                    height={contentHeight}
-                    onCountChange={(count) => setTabCounts(prev => ({ ...prev, notifications: count }))}
-                    focused={focus === 'tabContentList' || focus === 'tabContentDetails'}
-                  />
-                )}
-                {activeTab === 'history' && (
+                {activeTab === 'messages' && (
                   <HistoryTab 
                     serverName={selectedServer}
                     messages={currentServerMessages}
                     width={contentWidth} 
                     height={contentHeight}
-                    onCountChange={(count) => setTabCounts(prev => ({ ...prev, history: count }))}
-                    focusedPane={focus === 'historyDetail' ? 'details' : focus === 'historyList' ? 'messages' : null}
+                    onCountChange={(count) => setTabCounts(prev => ({ ...prev, messages: count }))}
+                    focusedPane={focus === 'messagesDetail' ? 'details' : focus === 'messagesList' ? 'messages' : null}
+                  />
+                )}
+                {activeTab === 'logging' && (
+                  <NotificationsTab 
+                    client={currentServerClient}
+                    stderrLogs={currentServerState?.stderrLogs || []}
+                    width={contentWidth} 
+                    height={contentHeight}
+                    onCountChange={(count) => setTabCounts(prev => ({ ...prev, logging: count }))}
+                    focused={focus === 'tabContentList' || focus === 'tabContentDetails'}
                   />
                 )}
               </>
-            ) : currentServerState?.status === 'connecting' ? (
+            ) : activeTab !== 'info' && selectedServer ? (
               <Box paddingX={1} paddingY={1}>
-                <Text color="yellow">Connecting to {selectedServer}...</Text>
-                <Box marginTop={1}>
-                  <Text dimColor>Please wait while the connection is established.</Text>
-                </Box>
+                <Text dimColor>Server not connected</Text>
               </Box>
-            ) : currentServerState?.status === 'error' ? (
-              <Box paddingX={1} paddingY={1}>
-                <Text color="red">Error connecting to {selectedServer}:</Text>
-                <Text color="red">{currentServerState.error}</Text>
-                <Box marginTop={1}>
-                  <Text dimColor>Check the server configuration and try again.</Text>
-                </Box>
-              </Box>
-            ) : selectedServer ? (
-              <>
-                {activeTab !== 'history' && (
-                  <Box paddingX={1} paddingY={1}>
-                    <Text dimColor>Waiting for connection...</Text>
-                    <Box marginTop={1} flexDirection="column">
-                      <Text dimColor>Once connected, you can view resources, prompts, and tools.</Text>
-                    </Box>
-                  </Box>
-                )}
-              </>
-            ) : (
-              <Box paddingX={1} paddingY={1}>
-                <Text dimColor>Select a server from the list to view details</Text>
-                <Box marginTop={1} flexDirection="column">
-                  <Text dimColor>Use Tab to cycle focus: Server List → Tabs → Content</Text>
-                  <Text dimColor>Arrow keys work in focused area</Text>
-                  <Text dimColor>Press '/' for commands</Text>
-                  <Text dimColor>Press underlined letter to switch tabs (R/P/T/N/H)</Text>
-                </Box>
-              </Box>
-            )}
+            ) : null}
           </Box>
         </Box>
       </Box>

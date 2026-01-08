@@ -141,10 +141,16 @@ export function useMCPClient(
     });
 
     try {
+      // Only support stdio in useMCPClient hook (legacy support)
+      // For full transport support, use the transport creation in App.tsx
+      if ('type' in config && config.type !== 'stdio' && config.type !== undefined) {
+        throw new Error(`Transport type ${config.type} not supported in useMCPClient hook`);
+      }
+      const stdioConfig = config as any;
       const baseTransport = new StdioClientTransport({
-        command: config.command,
-        args: config.args || [],
-        env: config.env,
+        command: stdioConfig.command,
+        args: stdioConfig.args || [],
+        env: stdioConfig.env,
       });
 
       // Wrap with proxy transport if message tracking is enabled
