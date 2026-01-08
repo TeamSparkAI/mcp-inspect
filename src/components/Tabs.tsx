@@ -40,6 +40,9 @@ export function Tabs({ activeTab, onTabChange, width, counts = {}, focused = fal
       borderRight={false} 
       borderBottom={true}
       flexDirection="row"
+      justifyContent="space-between"
+      flexWrap="wrap"
+      paddingX={1}
     >
       {visibleTabs.map((tab) => {
         const isActive = activeTab === tab.id;
@@ -51,7 +54,7 @@ export function Tabs({ activeTab, onTabChange, width, counts = {}, focused = fal
         return (
           <Box
             key={tab.id}
-            paddingX={2}
+            flexShrink={0}
           >
             <Text
               bold={isActive}
