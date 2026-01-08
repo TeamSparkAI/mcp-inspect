@@ -10,9 +10,10 @@ interface ResourcesTabProps {
   height: number;
   onCountChange?: (count: number) => void;
   focusedPane?: 'list' | 'details' | null;
+  onViewDetails?: (resource: any) => void;
 }
 
-export function ResourcesTab({ resources, client, width, height, onCountChange, focusedPane = null }: ResourcesTabProps) {
+export function ResourcesTab({ resources, client, width, height, onCountChange, focusedPane = null, onViewDetails }: ResourcesTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -30,6 +31,12 @@ export function ResourcesTab({ resources, client, width, height, onCountChange, 
     }
     
     if (focusedPane === 'details') {
+      // Handle '+' key to view in full screen modal
+      if (input === '+' && selectedResource && onViewDetails) {
+        onViewDetails(selectedResource);
+        return;
+      }
+      
       // Scroll the details pane using ink-scroll-view
       if (key.upArrow) {
         scrollViewRef.current?.scrollBy(-1);

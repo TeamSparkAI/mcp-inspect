@@ -10,9 +10,10 @@ interface HistoryTabProps {
   height: number;
   onCountChange?: (count: number) => void;
   focusedPane?: 'messages' | 'details' | null;
+  onViewDetails?: (message: MessageEntry) => void;
 }
 
-export function HistoryTab({ serverName, messages, width, height, onCountChange, focusedPane = null }: HistoryTabProps) {
+export function HistoryTab({ serverName, messages, width, height, onCountChange, focusedPane = null, onViewDetails }: HistoryTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [leftScrollOffset, setLeftScrollOffset] = useState<number>(0);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -57,6 +58,12 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
 
     // details scrolling (only when details pane is focused)
     if (focusedPane === 'details') {
+      // Handle '+' key to view in full screen modal
+      if (input === '+' && selectedMessage && onViewDetails) {
+        onViewDetails(selectedMessage);
+        return;
+      }
+      
       if (key.upArrow) {
         scrollViewRef.current?.scrollBy(-1);
       } else if (key.downArrow) {

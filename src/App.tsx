@@ -15,6 +15,8 @@ import { ToolsTab } from './components/ToolsTab.js';
 import { NotificationsTab } from './components/NotificationsTab.js';
 import { HistoryTab } from './components/HistoryTab.js';
 import { ToolTestModal } from './components/ToolTestModal.js';
+import { DetailsModal } from './components/DetailsModal.js';
+import type { MessageEntry } from './types/messages.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
@@ -56,6 +58,12 @@ function App({ configFile }: AppProps) {
   const [toolTestModal, setToolTestModal] = useState<{
     tool: any;
     client: Client | null;
+  } | null>(null);
+  
+  // Details modal state
+  const [detailsModal, setDetailsModal] = useState<{
+    title: string;
+    content: React.ReactNode;
   } | null>(null);
   
   // Server state management - store state for all servers
@@ -455,6 +463,159 @@ function App({ configFile }: AppProps) {
     [selectedServer, serverClients]
   );
 
+  // Helper functions to render details modal content
+  const renderResourceDetails = (resource: any) => (
+    <>
+      {resource.description && (
+        <>
+          {resource.description.split('\n').map((line: string, idx: number) => (
+            <Box key={`desc-${idx}`} marginTop={idx === 0 ? 0 : 0} flexShrink={0}>
+              <Text dimColor>{line}</Text>
+            </Box>
+          ))}
+        </>
+      )}
+      {resource.uri && (
+        <Box marginTop={1} flexShrink={0}>
+          <Text bold>URI:</Text>
+          <Box paddingLeft={2}>
+            <Text dimColor>{resource.uri}</Text>
+          </Box>
+        </Box>
+      )}
+      {resource.mimeType && (
+        <Box marginTop={1} flexShrink={0}>
+          <Text bold>MIME Type:</Text>
+          <Box paddingLeft={2}>
+            <Text dimColor>{resource.mimeType}</Text>
+          </Box>
+        </Box>
+      )}
+      <Box marginTop={1} flexShrink={0} flexDirection="column">
+        <Text bold>Full JSON:</Text>
+        <Box paddingLeft={2}>
+          <Text dimColor>
+            {JSON.stringify(resource, null, 2)}
+          </Text>
+        </Box>
+      </Box>
+    </>
+  );
+
+  const renderPromptDetails = (prompt: any) => (
+    <>
+      {prompt.description && (
+        <>
+          {prompt.description.split('\n').map((line: string, idx: number) => (
+            <Box key={`desc-${idx}`} marginTop={idx === 0 ? 0 : 0} flexShrink={0}>
+              <Text dimColor>{line}</Text>
+            </Box>
+          ))}
+        </>
+      )}
+      {prompt.arguments && prompt.arguments.length > 0 && (
+        <>
+          <Box marginTop={1} flexShrink={0}>
+            <Text bold>Arguments:</Text>
+          </Box>
+          {prompt.arguments.map((arg: any, idx: number) => (
+            <Box key={`arg-${idx}`} marginTop={1} paddingLeft={2} flexShrink={0}>
+              <Text dimColor>
+                - {arg.name}: {arg.description || arg.type || 'string'}
+              </Text>
+            </Box>
+          ))}
+        </>
+      )}
+      <Box marginTop={1} flexShrink={0} flexDirection="column">
+        <Text bold>Full JSON:</Text>
+        <Box paddingLeft={2}>
+          <Text dimColor>
+            {JSON.stringify(prompt, null, 2)}
+          </Text>
+        </Box>
+      </Box>
+    </>
+  );
+
+  const renderToolDetails = (tool: any) => (
+    <>
+      {tool.description && (
+        <>
+          {tool.description.split('\n').map((line: string, idx: number) => (
+            <Box key={`desc-${idx}`} marginTop={idx === 0 ? 0 : 0} flexShrink={0}>
+              <Text dimColor>{line}</Text>
+            </Box>
+          ))}
+        </>
+      )}
+      {tool.inputSchema && (
+        <Box marginTop={1} flexShrink={0} flexDirection="column">
+          <Text bold>Input Schema:</Text>
+          <Box paddingLeft={2}>
+            <Text dimColor>
+              {JSON.stringify(tool.inputSchema, null, 2)}
+            </Text>
+          </Box>
+        </Box>
+      )}
+      <Box marginTop={1} flexShrink={0} flexDirection="column">
+        <Text bold>Full JSON:</Text>
+        <Box paddingLeft={2}>
+          <Text dimColor>
+            {JSON.stringify(tool, null, 2)}
+          </Text>
+        </Box>
+      </Box>
+    </>
+  );
+
+  const renderMessageDetails = (message: MessageEntry) => (
+    <>
+      <Box flexShrink={0}>
+        <Text bold>Direction: {message.direction}</Text>
+      </Box>
+      {message.duration !== undefined && (
+        <Box marginTop={1} flexShrink={0}>
+          <Text dimColor>Duration: {message.duration}ms</Text>
+        </Box>
+      )}
+      {message.direction === 'request' ? (
+        <>
+          <Box marginTop={1} flexShrink={0} flexDirection="column">
+            <Text bold>Request:</Text>
+            <Box paddingLeft={2}>
+              <Text dimColor>
+                {JSON.stringify(message.message, null, 2)}
+              </Text>
+            </Box>
+          </Box>
+          {message.response && (
+            <Box marginTop={1} flexShrink={0} flexDirection="column">
+              <Text bold>Response:</Text>
+              <Box paddingLeft={2}>
+                <Text dimColor>
+                  {JSON.stringify(message.response, null, 2)}
+                </Text>
+              </Box>
+            </Box>
+          )}
+        </>
+      ) : (
+        <Box marginTop={1} flexShrink={0} flexDirection="column">
+          <Text bold>
+            {message.direction === 'response' ? 'Response:' : 'Notification:'}
+          </Text>
+          <Box paddingLeft={2}>
+            <Text dimColor>
+              {JSON.stringify(message.message, null, 2)}
+            </Text>
+          </Box>
+        </Box>
+      )}
+    </>
+  );
+
   // Update tab counts when selected server changes
   useEffect(() => {
     if (!selectedServer) {
@@ -505,7 +666,7 @@ function App({ configFile }: AppProps) {
 
   useInput((input: string, key: Key) => {
     // Don't process input when modal is open
-    if (toolTestModal) {
+    if (toolTestModal || detailsModal) {
       return;
     }
 
@@ -822,6 +983,10 @@ function App({ configFile }: AppProps) {
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, resources: count }))}
                     focusedPane={focus === 'tabContentDetails' ? 'details' : focus === 'tabContentList' ? 'list' : null}
+                    onViewDetails={(resource) => setDetailsModal({
+                      title: `Resource: ${resource.name || resource.uri || 'Unknown'}`,
+                      content: renderResourceDetails(resource)
+                    })}
                   />
                 )}
                 {activeTab === 'prompts' && (
@@ -833,6 +998,10 @@ function App({ configFile }: AppProps) {
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, prompts: count }))}
                     focusedPane={focus === 'tabContentDetails' ? 'details' : focus === 'tabContentList' ? 'list' : null}
+                    onViewDetails={(prompt) => setDetailsModal({
+                      title: `Prompt: ${prompt.name || 'Unknown'}`,
+                      content: renderPromptDetails(prompt)
+                    })}
                   />
                 )}
                 {activeTab === 'tools' && (
@@ -845,6 +1014,10 @@ function App({ configFile }: AppProps) {
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, tools: count }))}
                     focusedPane={focus === 'tabContentDetails' ? 'details' : focus === 'tabContentList' ? 'list' : null}
                     onTestTool={(tool) => setToolTestModal({ tool, client: currentServerClient })}
+                    onViewDetails={(tool) => setDetailsModal({
+                      title: `Tool: ${tool.name || 'Unknown'}`,
+                      content: renderToolDetails(tool)
+                    })}
                   />
                 )}
                 {activeTab === 'messages' && (
@@ -855,6 +1028,19 @@ function App({ configFile }: AppProps) {
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, messages: count }))}
                     focusedPane={focus === 'messagesDetail' ? 'details' : focus === 'messagesList' ? 'messages' : null}
+                    onViewDetails={(message) => {
+                      const label = message.direction === 'request' && 'method' in message.message
+                        ? message.message.method
+                        : message.direction === 'response'
+                        ? 'Response'
+                        : message.direction === 'notification' && 'method' in message.message
+                        ? message.message.method
+                        : 'Message';
+                      setDetailsModal({
+                        title: `Message: ${label}`,
+                        content: renderMessageDetails(message)
+                      });
+                    }}
                   />
                 )}
                 {activeTab === 'logging' && (
@@ -895,6 +1081,17 @@ function App({ configFile }: AppProps) {
           width={dimensions.width}
           height={dimensions.height}
           onClose={() => setToolTestModal(null)}
+        />
+      )}
+
+      {/* Details Modal - rendered at App level for full screen overlay */}
+      {detailsModal && (
+        <DetailsModal
+          title={detailsModal.title}
+          content={detailsModal.content}
+          width={dimensions.width}
+          height={dimensions.height}
+          onClose={() => setDetailsModal(null)}
         />
       )}
     </Box>

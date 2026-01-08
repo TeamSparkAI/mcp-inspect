@@ -10,9 +10,10 @@ interface PromptsTabProps {
   height: number;
   onCountChange?: (count: number) => void;
   focusedPane?: 'list' | 'details' | null;
+  onViewDetails?: (prompt: any) => void;
 }
 
-export function PromptsTab({ prompts, client, width, height, onCountChange, focusedPane = null }: PromptsTabProps) {
+export function PromptsTab({ prompts, client, width, height, onCountChange, focusedPane = null, onViewDetails }: PromptsTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -30,6 +31,12 @@ export function PromptsTab({ prompts, client, width, height, onCountChange, focu
     }
     
     if (focusedPane === 'details') {
+      // Handle '+' key to view in full screen modal
+      if (input === '+' && selectedPrompt && onViewDetails) {
+        onViewDetails(selectedPrompt);
+        return;
+      }
+      
       // Scroll the details pane using ink-scroll-view
       if (key.upArrow) {
         scrollViewRef.current?.scrollBy(-1);

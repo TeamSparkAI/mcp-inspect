@@ -11,9 +11,10 @@ interface ToolsTabProps {
   onCountChange?: (count: number) => void;
   focusedPane?: 'list' | 'details' | null;
   onTestTool?: (tool: any) => void;
+  onViewDetails?: (tool: any) => void;
 }
 
-export function ToolsTab({ tools, client, width, height, onCountChange, focusedPane = null, onTestTool }: ToolsTabProps) {
+export function ToolsTab({ tools, client, width, height, onCountChange, focusedPane = null, onTestTool, onViewDetails }: ToolsTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -23,6 +24,12 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
 
   // Handle arrow key navigation when focused
   useInput((input: string, key: Key) => {
+    // Handle Enter key to test tool (works from both list and details)
+    if (key.return && selectedTool && client && onTestTool) {
+      onTestTool(selectedTool);
+      return;
+    }
+    
     if (focusedPane === 'list') {
       // Navigate the list
       if (key.upArrow && selectedIndex > 0) {
@@ -34,11 +41,9 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
     }
     
     if (focusedPane === 'details') {
-      // Handle 'e' key to test tool
-      if (input === 'e' || input === 'E') {
-        if (selectedTool && client && onTestTool) {
-          onTestTool(selectedTool);
-        }
+      // Handle '+' key to view in full screen modal
+      if (input === '+' && selectedTool && onViewDetails) {
+        onViewDetails(selectedTool);
         return;
       }
       
@@ -134,7 +139,7 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
               {client && (
                 <Text>
                   <Text color="cyan" bold>
-                    [T<Text underline>e</Text>st]
+                    [Enter to Test]
                   </Text>
                 </Text>
               )}
