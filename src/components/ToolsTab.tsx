@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput, type Key } from 'ink';
+import { ScrollView, type ScrollViewRef } from 'ink-scroll-view';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 interface ToolsTabProps {
@@ -8,23 +9,60 @@ interface ToolsTabProps {
   width: number;
   height: number;
   onCountChange?: (count: number) => void;
-  focused?: boolean;
+  focusedPane?: 'list' | 'details' | null;
 }
 
-export function ToolsTab({ tools, client, width, height, onCountChange, focused = false }: ToolsTabProps) {
+export function ToolsTab({ tools, client, width, height, onCountChange, focusedPane = null }: ToolsTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollViewRef>(null);
+  
+  const listWidth = Math.floor(width * 0.4);
+  const detailWidth = width - listWidth;
 
   // Handle arrow key navigation when focused
   useInput((input: string, key: Key) => {
-    if (!focused) return;
-
-    if (key.upArrow && selectedIndex > 0) {
-      setSelectedIndex(selectedIndex - 1);
-    } else if (key.downArrow && selectedIndex < tools.length - 1) {
-      setSelectedIndex(selectedIndex + 1);
+    if (focusedPane === 'list') {
+      // Navigate the list
+      if (key.upArrow && selectedIndex > 0) {
+        setSelectedIndex(selectedIndex - 1);
+      } else if (key.downArrow && selectedIndex < tools.length - 1) {
+        setSelectedIndex(selectedIndex + 1);
+      }
+      return;
     }
-  }, { isActive: focused });
+    
+    if (focusedPane === 'details') {
+      // Scroll the details pane using ink-scroll-view
+      if (key.upArrow) {
+        scrollViewRef.current?.scrollBy(-1);
+      } else if (key.downArrow) {
+        scrollViewRef.current?.scrollBy(1);
+      } else if (key.pageUp) {
+        const viewportHeight = scrollViewRef.current?.getViewportHeight() || 1;
+        scrollViewRef.current?.scrollBy(-viewportHeight);
+      } else if (key.pageDown) {
+        const viewportHeight = scrollViewRef.current?.getViewportHeight() || 1;
+        scrollViewRef.current?.scrollBy(viewportHeight);
+      }
+    }
+  }, { isActive: focusedPane === 'list' || focusedPane === 'details' });
+
+  // Helper to calculate content lines for a tool
+  const calculateToolContentLines = (tool: any): number => {
+    let lines = 1; // Name
+    if (tool.description) lines += tool.description.split('\n').length + 1;
+    if (tool.inputSchema) {
+      const schemaStr = JSON.stringify(tool.inputSchema, null, 2);
+      lines += schemaStr.split('\n').length + 2; // +2 for "Input Schema:" label
+    }
+    return lines;
+  };
+
+  // Reset scroll when selection changes
+  useEffect(() => {
+    scrollViewRef.current?.scrollTo(0);
+  }, [selectedIndex]);
 
   // Reset selected index when tools array changes (different server)
   useEffect(() => {
@@ -32,9 +70,6 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focused 
   }, [tools]);
 
   const selectedTool = tools[selectedIndex] || null;
-
-  const listWidth = Math.floor(width * 0.4);
-  const detailWidth = width - listWidth;
 
   return (
     <Box flexDirection="row" width={width} height={height}>
@@ -51,7 +86,7 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focused 
         paddingX={1}
       >
         <Box paddingY={1}>
-          <Text bold backgroundColor={focused ? 'yellow' : undefined}>Tools ({tools.length})</Text>
+          <Text bold backgroundColor={focusedPane === 'list' ? 'yellow' : undefined}>Tools ({tools.length})</Text>
         </Box>
         {error ? (
           <Box paddingY={1}>
@@ -79,30 +114,48 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focused 
       </Box>
 
       {/* Tool Details */}
-      <Box width={detailWidth} height={height} paddingX={1} flexDirection="column">
+      <Box width={detailWidth} height={height} paddingX={1} flexDirection="column" overflow="hidden">
         {selectedTool ? (
-          <Box flexDirection="column" paddingY={1}>
-            <Text bold color="cyan">
-              {selectedTool.name}
-            </Text>
-            {selectedTool.description && (
-              <Box marginTop={1}>
-                <Text dimColor>{selectedTool.description}</Text>
-              </Box>
-            )}
-            {selectedTool.inputSchema && (
-              <Box marginTop={1} flexDirection="column">
-                <Text bold>Input Schema:</Text>
-                <Box marginTop={1} paddingLeft={2}>
-                  <Text dimColor>
-                    {JSON.stringify(selectedTool.inputSchema, null, 2)}
-                  </Text>
-                </Box>
-              </Box>
-            )}
+          <Box flexDirection="column" paddingY={1} height={height - 2}>
+            {/* Fixed name line */}
+            <Box flexShrink={0}>
+              <Text bold backgroundColor={focusedPane === 'details' ? 'yellow' : undefined} color="cyan">
+                {selectedTool.name}
+              </Text>
+            </Box>
+            
+            {/* Scrollable content area - exact height: height - 2 (parent) - 2 (paddingY) - 1 (name) = height - 5 */}
+            <Box flexDirection="column" height={height - 5} overflow="hidden">
+              <ScrollView ref={scrollViewRef}>
+                {/* Description */}
+                {selectedTool.description && (
+                  <>
+                    {selectedTool.description.split('\n').map((line: string, idx: number) => (
+                      <Box key={`desc-${idx}`} marginTop={idx === 0 ? 1 : 0} flexShrink={0}>
+                        <Text dimColor>{line}</Text>
+                      </Box>
+                    ))}
+                  </>
+                )}
+                
+                {/* Input Schema */}
+                {selectedTool.inputSchema && (
+                  <>
+                    <Box marginTop={1} flexShrink={0}>
+                      <Text bold>Input Schema:</Text>
+                    </Box>
+                    {JSON.stringify(selectedTool.inputSchema, null, 2).split('\n').map((line: string, idx: number) => (
+                      <Box key={`schema-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
+                        <Text dimColor>{line}</Text>
+                      </Box>
+                    ))}
+                  </>
+                )}
+              </ScrollView>
+            </Box>
           </Box>
         ) : (
-          <Box paddingY={1}>
+          <Box paddingY={1} flexShrink={0}>
             <Text dimColor>Select a tool to view details</Text>
           </Box>
         )}

@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Box, Text, useInput, type Key } from 'ink';
+import { ScrollView, type ScrollViewRef } from 'ink-scroll-view';
 import type { MessageEntry } from '../types/messages.js';
 
 interface HistoryTabProps {
@@ -14,29 +15,13 @@ interface HistoryTabProps {
 export function HistoryTab({ serverName, messages, width, height, onCountChange, focusedPane = null }: HistoryTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [leftScrollOffset, setLeftScrollOffset] = useState<number>(0);
-  const [rightScrollOffset, setRightScrollOffset] = useState<number>(0);
+  const scrollViewRef = useRef<ScrollViewRef>(null);
   
   // Calculate visible area for left pane (accounting for header)
   const leftPaneHeight = height - 2; // Subtract header space
   const visibleMessages = messages.slice(leftScrollOffset, leftScrollOffset + leftPaneHeight);
 
   const selectedMessage = messages[selectedIndex] || null;
-
-  // Format JSON helper
-  const formatJSON = (obj: any): string[] => {
-    return JSON.stringify(obj, null, 2).split('\n');
-  };
-
-  // Calculate line counts for scrolling
-  const requestLines = selectedMessage && selectedMessage.direction === 'request' 
-    ? formatJSON(selectedMessage.message) 
-    : [];
-  const responseLines = selectedMessage?.response 
-    ? formatJSON(selectedMessage.response) 
-    : [];
-  const messageLines = selectedMessage && selectedMessage.direction !== 'request'
-    ? formatJSON(selectedMessage.message)
-    : [];
 
   // Handle arrow key navigation and scrolling when focused
   useInput((input: string, key: Key) => {
@@ -72,18 +57,16 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
 
     // details scrolling (only when details pane is focused)
     if (focusedPane === 'details') {
-      const maxScroll = selectedMessage?.direction === 'request'
-        ? requestLines.length + (selectedMessage.response ? responseLines.length + 3 : 0)
-        : messageLines.length;
-
-      if (key.pageUp) {
-        setRightScrollOffset(Math.max(0, rightScrollOffset - 10));
-      } else if (key.pageDown) {
-        setRightScrollOffset(Math.min(maxScroll, rightScrollOffset + 10));
-      } else if (key.upArrow) {
-        setRightScrollOffset(Math.max(0, rightScrollOffset - 1));
+      if (key.upArrow) {
+        scrollViewRef.current?.scrollBy(-1);
       } else if (key.downArrow) {
-        setRightScrollOffset(Math.min(maxScroll, rightScrollOffset + 1));
+        scrollViewRef.current?.scrollBy(1);
+      } else if (key.pageUp) {
+        const viewportHeight = scrollViewRef.current?.getViewportHeight() || 1;
+        scrollViewRef.current?.scrollBy(-viewportHeight);
+      } else if (key.pageDown) {
+        const viewportHeight = scrollViewRef.current?.getViewportHeight() || 1;
+        scrollViewRef.current?.scrollBy(viewportHeight);
       }
     }
   }, { isActive: focusedPane !== undefined });
@@ -103,7 +86,7 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
 
   // Reset scroll when message selection changes
   useEffect(() => {
-    setRightScrollOffset(0);
+    scrollViewRef.current?.scrollTo(0);
   }, [selectedIndex]);
 
   const listWidth = Math.floor(width * 0.4);
@@ -191,8 +174,9 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
         borderRight={false}
       >
         {selectedMessage ? (
-          <Box flexDirection="column" paddingY={1} height={height - 2}>
-            <Box flexDirection="row" justifyContent="space-between" marginBottom={1} flexShrink={0}>
+          <Box flexDirection="column" paddingY={1} height={height - 2} overflow="hidden">
+            {/* Fixed method caption only */}
+            <Box flexDirection="row" justifyContent="space-between" flexShrink={0}>
               <Text 
                 bold 
                 color="cyan"
@@ -211,59 +195,71 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
               </Text>
             </Box>
 
-            <Box marginTop={1} flexDirection="column" flexShrink={0}>
-              <Text bold>Direction: {selectedMessage.direction}</Text>
-              {selectedMessage.duration !== undefined && (
-              <Box marginTop={1}>
-                <Text dimColor>
-                  Duration: {selectedMessage.duration}ms
-                </Text>
-              </Box>
-              )}
-            </Box>
-
-            {/* Content area - show complete request and response */}
-            <Box flexDirection="column" marginTop={1}>
-              {selectedMessage.direction === 'request' ? (
-                <>
-                  {/* Request - show COMPLETE */}
-                  <Box flexDirection="column">
-                    <Text bold>Request:</Text>
-                    <Box marginTop={1} paddingLeft={2}>
-                      <Text dimColor>
-                        {JSON.stringify(selectedMessage.message, null, 2)}
-                      </Text>
-                    </Box>
-                  </Box>
-
-                  {/* Response - show COMPLETE if exists */}
-                  {selectedMessage.response ? (
-                    <Box marginTop={1} flexDirection="column">
-                      <Text bold>Response:</Text>
-                      <Box marginTop={1} paddingLeft={2}>
-                        <Text dimColor>
-                          {JSON.stringify(selectedMessage.response, null, 2)}
-                        </Text>
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Box marginTop={1}>
-                      <Text dimColor italic>Waiting for response...</Text>
-                    </Box>
-                  )}
-                </>
-              ) : (
-                <Box flexDirection="column">
-                  <Text bold>
-                    {selectedMessage.direction === 'response' ? 'Response:' : 'Notification:'}
-                  </Text>
-                  <Box marginTop={1} paddingLeft={2}>
+            {/* Scrollable content area - everything else scrolls */}
+            <Box flexDirection="column" height={height - 3} overflow="hidden">
+              <ScrollView ref={scrollViewRef}>
+                {/* Metadata */}
+                <Box marginTop={1} flexDirection="column" flexShrink={0}>
+                  <Text bold>Direction: {selectedMessage.direction}</Text>
+                  {selectedMessage.duration !== undefined && (
+                  <Box marginTop={1}>
                     <Text dimColor>
-                      {JSON.stringify(selectedMessage.message, null, 2)}
+                      Duration: {selectedMessage.duration}ms
                     </Text>
                   </Box>
+                  )}
                 </Box>
-              )}
+
+                {selectedMessage.direction === 'request' ? (
+                  <>
+                    {/* Request label */}
+                    <Box marginTop={1} flexShrink={0}>
+                      <Text bold>Request:</Text>
+                    </Box>
+                    
+                    {/* Request content */}
+                    {JSON.stringify(selectedMessage.message, null, 2).split('\n').map((line: string, idx: number) => (
+                      <Box key={`req-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
+                        <Text dimColor>{line}</Text>
+                      </Box>
+                    ))}
+                    
+                    {/* Response section */}
+                    {selectedMessage.response ? (
+                      <>
+                        <Box marginTop={1} flexShrink={0}>
+                          <Text bold>Response:</Text>
+                        </Box>
+                        {JSON.stringify(selectedMessage.response, null, 2).split('\n').map((line: string, idx: number) => (
+                          <Box key={`resp-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
+                            <Text dimColor>{line}</Text>
+                          </Box>
+                        ))}
+                      </>
+                    ) : (
+                      <Box marginTop={1} flexShrink={0}>
+                        <Text dimColor italic>Waiting for response...</Text>
+                      </Box>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Response or notification label */}
+                    <Box marginTop={1} flexShrink={0}>
+                      <Text bold>
+                        {selectedMessage.direction === 'response' ? 'Response:' : 'Notification:'}
+                      </Text>
+                    </Box>
+                    
+                    {/* Message content */}
+                    {JSON.stringify(selectedMessage.message, null, 2).split('\n').map((line: string, idx: number) => (
+                      <Box key={`msg-${idx}`} marginTop={idx === 0 ? 1 : 0} paddingLeft={2} flexShrink={0}>
+                        <Text dimColor>{line}</Text>
+                      </Box>
+                    ))}
+                  </>
+                )}
+              </ScrollView>
             </Box>
           </Box>
         ) : (

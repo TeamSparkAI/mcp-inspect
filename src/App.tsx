@@ -350,12 +350,16 @@ function App({ configFile }: AppProps) {
     }
   }, [selectedServer, serverStates, messageHistory]);
 
-  // Keep focus state consistent when entering/leaving History
+  // Keep focus state consistent when switching tabs
   useEffect(() => {
     if (activeTab === 'history') {
-      if (focus === 'tabContent') setFocus('historyList');
+      if (focus === 'tabContentList' || focus === 'tabContentDetails') {
+        setFocus('historyList');
+      }
     } else {
-      if (focus === 'historyList' || focus === 'historyDetail') setFocus('tabContent');
+      if (focus === 'historyList' || focus === 'historyDetail') {
+        setFocus('tabContentList');
+      }
     }
   }, [activeTab]); // intentionally not depending on focus to avoid loops
 
@@ -397,19 +401,20 @@ function App({ configFile }: AppProps) {
         setActiveTab(tabAccelerators[input.toLowerCase()]);
         setFocus('tabs');
       } else if (key.tab && !key.shift) {
-        // Flat focus order. History gets 2 focus stops.
+        // Flat focus order: servers -> tabs -> list -> details -> wrap to servers
         const focusOrder: FocusArea[] =
           activeTab === 'history'
             ? ['serverList', 'tabs', 'historyList', 'historyDetail']
-            : ['serverList', 'tabs', 'tabContent'];
+            : ['serverList', 'tabs', 'tabContentList', 'tabContentDetails'];
         const currentIndex = focusOrder.indexOf(focus);
         const nextIndex = (currentIndex + 1) % focusOrder.length;
         setFocus(focusOrder[nextIndex]);
       } else if (key.tab && key.shift) {
+        // Reverse order: servers <- tabs <- list <- details <- wrap to servers
         const focusOrder: FocusArea[] =
           activeTab === 'history'
             ? ['serverList', 'tabs', 'historyList', 'historyDetail']
-            : ['serverList', 'tabs', 'tabContent'];
+            : ['serverList', 'tabs', 'tabContentList', 'tabContentDetails'];
         const currentIndex = focusOrder.indexOf(focus);
         const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusOrder.length - 1;
         setFocus(focusOrder[prevIndex]);
@@ -434,8 +439,10 @@ function App({ configFile }: AppProps) {
               setSelectedServer(serverNames[newIndex] || null);
             }
           }
+          return; // Handled, don't let other handlers process
         }
-        // If focus is 'tabs' or tab content, arrow keys will be handled by those components
+        // If focus is on tabs, tabContentList, tabContentDetails, historyList, or historyDetail,
+        // arrow keys will be handled by those components - don't do anything here
       } else if (focus === 'tabs' && (key.leftArrow || key.rightArrow)) {
         // Left/Right arrows switch tabs when tabs are focused
         const tabs: TabType[] = ['resources', 'prompts', 'tools', 'notifications', 'history'];
@@ -674,7 +681,7 @@ function App({ configFile }: AppProps) {
                     width={contentWidth} 
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, resources: count }))}
-                    focused={focus === 'tabContent'}
+                    focusedPane={focus === 'tabContentDetails' ? 'details' : focus === 'tabContentList' ? 'list' : null}
                   />
                 )}
                 {activeTab === 'prompts' && (
@@ -685,7 +692,7 @@ function App({ configFile }: AppProps) {
                     width={contentWidth} 
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, prompts: count }))}
-                    focused={focus === 'tabContent'}
+                    focusedPane={focus === 'tabContentDetails' ? 'details' : focus === 'tabContentList' ? 'list' : null}
                   />
                 )}
                 {activeTab === 'tools' && (
@@ -696,7 +703,7 @@ function App({ configFile }: AppProps) {
                     width={contentWidth} 
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, tools: count }))}
-                    focused={focus === 'tabContent'}
+                    focusedPane={focus === 'tabContentDetails' ? 'details' : focus === 'tabContentList' ? 'list' : null}
                   />
                 )}
                 {activeTab === 'notifications' && (
@@ -705,7 +712,7 @@ function App({ configFile }: AppProps) {
                     width={contentWidth} 
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, notifications: count }))}
-                    focused={focus === 'tabContent'}
+                    focused={focus === 'tabContentList' || focus === 'tabContentDetails'}
                   />
                 )}
                 {activeTab === 'history' && (

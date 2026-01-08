@@ -22,7 +22,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "ink": "^6.6.0",
+    "ink-scroll-view": "^0.3.5",
     "react": "^19.2.3"
   },
   "devDependencies": {

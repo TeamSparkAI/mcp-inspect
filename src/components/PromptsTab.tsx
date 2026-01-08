@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput, type Key } from 'ink';
+import { ScrollView, type ScrollViewRef } from 'ink-scroll-view';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 interface PromptsTabProps {
@@ -8,23 +9,46 @@ interface PromptsTabProps {
   width: number;
   height: number;
   onCountChange?: (count: number) => void;
-  focused?: boolean;
+  focusedPane?: 'list' | 'details' | null;
 }
 
-export function PromptsTab({ prompts, client, width, height, onCountChange, focused = false }: PromptsTabProps) {
+export function PromptsTab({ prompts, client, width, height, onCountChange, focusedPane = null }: PromptsTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollViewRef>(null);
 
   // Handle arrow key navigation when focused
   useInput((input: string, key: Key) => {
-    if (!focused) return;
-
-    if (key.upArrow && selectedIndex > 0) {
-      setSelectedIndex(selectedIndex - 1);
-    } else if (key.downArrow && selectedIndex < prompts.length - 1) {
-      setSelectedIndex(selectedIndex + 1);
+    if (focusedPane === 'list') {
+      // Navigate the list
+      if (key.upArrow && selectedIndex > 0) {
+        setSelectedIndex(selectedIndex - 1);
+      } else if (key.downArrow && selectedIndex < prompts.length - 1) {
+        setSelectedIndex(selectedIndex + 1);
+      }
+      return;
     }
-  }, { isActive: focused });
+    
+    if (focusedPane === 'details') {
+      // Scroll the details pane using ink-scroll-view
+      if (key.upArrow) {
+        scrollViewRef.current?.scrollBy(-1);
+      } else if (key.downArrow) {
+        scrollViewRef.current?.scrollBy(1);
+      } else if (key.pageUp) {
+        const viewportHeight = scrollViewRef.current?.getViewportHeight() || 1;
+        scrollViewRef.current?.scrollBy(-viewportHeight);
+      } else if (key.pageDown) {
+        const viewportHeight = scrollViewRef.current?.getViewportHeight() || 1;
+        scrollViewRef.current?.scrollBy(viewportHeight);
+      }
+    }
+  }, { isActive: focusedPane === 'list' || focusedPane === 'details' });
+
+  // Reset scroll when selection changes
+  useEffect(() => {
+    scrollViewRef.current?.scrollTo(0);
+  }, [selectedIndex]);
 
   // Reset selected index when prompts array changes (different server)
   useEffect(() => {
@@ -51,7 +75,7 @@ export function PromptsTab({ prompts, client, width, height, onCountChange, focu
         paddingX={1}
       >
         <Box paddingY={1}>
-          <Text bold backgroundColor={focused ? 'yellow' : undefined}>Prompts ({prompts.length})</Text>
+          <Text bold backgroundColor={focusedPane === 'list' ? 'yellow' : undefined}>Prompts ({prompts.length})</Text>
         </Box>
         {error ? (
           <Box paddingY={1}>
@@ -79,32 +103,50 @@ export function PromptsTab({ prompts, client, width, height, onCountChange, focu
       </Box>
 
       {/* Prompt Details */}
-      <Box width={detailWidth} height={height} paddingX={1} flexDirection="column">
+      <Box width={detailWidth} height={height} paddingX={1} flexDirection="column" overflow="hidden">
         {selectedPrompt ? (
-          <Box flexDirection="column" paddingY={1}>
-            <Text bold color="cyan">
-              {selectedPrompt.name}
-            </Text>
-            {selectedPrompt.description && (
-              <Box marginTop={1}>
-                <Text dimColor>{selectedPrompt.description}</Text>
-              </Box>
-            )}
-            {selectedPrompt.arguments && selectedPrompt.arguments.length > 0 && (
-              <Box marginTop={1} flexDirection="column">
-                <Text bold>Arguments:</Text>
-                {selectedPrompt.arguments.map((arg: any, idx: number) => (
-                  <Box key={idx} marginTop={1} paddingLeft={2}>
-                    <Text dimColor>
-                      - {arg.name}: {arg.description || arg.type || 'string'}
-                    </Text>
-                  </Box>
-                ))}
-              </Box>
-            )}
+          <Box flexDirection="column" paddingY={1} height={height - 2}>
+            {/* Fixed name line */}
+            <Box flexShrink={0}>
+              <Text bold backgroundColor={focusedPane === 'details' ? 'yellow' : undefined} color="cyan">
+                {selectedPrompt.name}
+              </Text>
+            </Box>
+            
+            {/* Scrollable content area */}
+            <Box flexDirection="column" height={height - 3} overflow="hidden">
+              <ScrollView ref={scrollViewRef}>
+                {/* Description */}
+                {selectedPrompt.description && (
+                  <>
+                    {selectedPrompt.description.split('\n').map((line: string, idx: number) => (
+                      <Box key={`desc-${idx}`} marginTop={idx === 0 ? 1 : 0} flexShrink={0}>
+                        <Text dimColor>{line}</Text>
+                      </Box>
+                    ))}
+                  </>
+                )}
+                
+                {/* Arguments */}
+                {selectedPrompt.arguments && selectedPrompt.arguments.length > 0 && (
+                  <>
+                    <Box marginTop={1} flexShrink={0}>
+                      <Text bold>Arguments:</Text>
+                    </Box>
+                    {selectedPrompt.arguments.map((arg: any, idx: number) => (
+                      <Box key={`arg-${idx}`} marginTop={1} paddingLeft={2} flexShrink={0}>
+                        <Text dimColor>
+                          - {arg.name}: {arg.description || arg.type || 'string'}
+                        </Text>
+                      </Box>
+                    ))}
+                  </>
+                )}
+              </ScrollView>
+            </Box>
           </Box>
         ) : (
-          <Box paddingY={1}>
+          <Box paddingY={1} flexShrink={0}>
             <Text dimColor>Select a prompt to view details</Text>
           </Box>
         )}
