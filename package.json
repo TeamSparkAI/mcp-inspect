@@ -1,27 +1,47 @@
 {
   "name": "mcp-inspect",
   "version": "1.0.0",
-  "description": "MCP Inspector (TUI)",
+  "description": "A terminal UI (TUI) inspector for Model Context Protocol (MCP) servers",
   "type": "module",
   "main": "dist/tui.js",
   "bin": {
     "mcp-inspect": "./dist/tui.js"
   },
+  "files": [
+    "dist/",
+    "LICENSE",
+    "README.md",
+    "screenshots/"
+  ],
   "scripts": {
     "start": "tsx tui.tsx",
     "build": "tsc",
     "dev": "tsx tui.tsx",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "everything-sse": "./scripts/run-everything-sse.sh"
+    "everything-sse": "./scripts/run-everything-sse.sh",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "inspector",
     "tui",
-    "cli"
+    "terminal-ui",
+    "cli",
+    "mcp-server",
+    "debug",
+    "development-tools"
   ],
-  "author": "",
+  "author": "TeamSpark, LLC",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TeamSparkAI/mcp-inspect.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TeamSparkAI/mcp-inspect/issues"
+  },
+  "homepage": "https://github.com/TeamSparkAI/mcp-inspect#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
     "ink": "^6.6.0",

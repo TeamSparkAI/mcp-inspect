@@ -37,11 +37,10 @@ const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
 
 interface AppProps {
   configFile: string;
+  onExit?: (code?: number) => void;
 }
 
-function App({ configFile }: AppProps) {
-  const [command, setCommand] = useState('');
-  const [showCommand, setShowCommand] = useState(false);
+function App({ configFile, onExit }: AppProps) {
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('info');
   const [focus, setFocus] = useState<FocusArea>('serverList');
@@ -672,134 +671,95 @@ function App({ configFile }: AppProps) {
     }
 
     if (key.ctrl && input === 'c') {
-      process.exit();
+      if (onExit) {
+        onExit();
+      } else {
+        process.exit();
+      }
     }
 
-    if (input === '/') {
-      setShowCommand(true);
-      setCommand('/');
-      return;
+    // Exit accelerators
+    if (key.escape) {
+      if (onExit) {
+        onExit(0);
+      } else {
+        process.exit(0);
+      }
     }
-
-    if (showCommand) {
-      if (key.return) {
-        handleCommand(command);
-        setCommand('');
-        setShowCommand(false);
-      } else if (key.backspace || key.delete) {
-        if (command.length > 1) {
-          setCommand(command.slice(0, -1));
-        } else {
-          setCommand('');
-          setShowCommand(false);
-        }
-      } else if (key.escape) {
-        setCommand('');
-        setShowCommand(false);
-      } else if (key.ctrl && input === 'c') {
-        // CTRL-C to exit
-        process.exit(0);
-      } else if (input && !key.ctrl && !key.meta) {
-        setCommand(command + input);
-      }
-    } else {
-      // Exit accelerators
-      if (key.escape) {
-        process.exit(0);
-      }
-      
-      // Tab switching with accelerator keys (first character of tab name)
-      const tabAccelerators: Record<string, TabType> = Object.fromEntries(
-        tabList.map((tab: { id: TabType; label: string; accelerator: string }) => [tab.accelerator, tab.id])
-      );
-      if (tabAccelerators[input.toLowerCase()]) {
-        setActiveTab(tabAccelerators[input.toLowerCase()]);
-        setFocus('tabs');
-      } else if (key.tab && !key.shift) {
-        // Flat focus order: servers -> tabs -> list -> details -> wrap to servers
-        const focusOrder: FocusArea[] =
-          activeTab === 'messages'
-            ? ['serverList', 'tabs', 'messagesList', 'messagesDetail']
-            : ['serverList', 'tabs', 'tabContentList', 'tabContentDetails'];
-        const currentIndex = focusOrder.indexOf(focus);
-        const nextIndex = (currentIndex + 1) % focusOrder.length;
-        setFocus(focusOrder[nextIndex]);
-      } else if (key.tab && key.shift) {
-        // Reverse order: servers <- tabs <- list <- details <- wrap to servers
-        const focusOrder: FocusArea[] =
-          activeTab === 'messages'
-            ? ['serverList', 'tabs', 'messagesList', 'messagesDetail']
-            : ['serverList', 'tabs', 'tabContentList', 'tabContentDetails'];
-        const currentIndex = focusOrder.indexOf(focus);
-        const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusOrder.length - 1;
-        setFocus(focusOrder[prevIndex]);
-      } else if (key.upArrow || key.downArrow) {
-        // Arrow keys only work in the focused pane
-        if (focus === 'serverList') {
-          // Arrow key navigation for server list
-          if (key.upArrow) {
-            if (selectedServer === null) {
-              setSelectedServer(serverNames[serverNames.length - 1] || null);
-            } else {
-              const currentIndex = serverNames.indexOf(selectedServer);
-              const newIndex = currentIndex > 0 ? currentIndex - 1 : serverNames.length - 1;
-              setSelectedServer(serverNames[newIndex] || null);
-            }
-          } else if (key.downArrow) {
-            if (selectedServer === null) {
-              setSelectedServer(serverNames[0] || null);
-            } else {
-              const currentIndex = serverNames.indexOf(selectedServer);
-              const newIndex = currentIndex < serverNames.length - 1 ? currentIndex + 1 : 0;
-              setSelectedServer(serverNames[newIndex] || null);
-            }
+    
+    // Tab switching with accelerator keys (first character of tab name)
+    const tabAccelerators: Record<string, TabType> = Object.fromEntries(
+      tabList.map((tab: { id: TabType; label: string; accelerator: string }) => [tab.accelerator, tab.id])
+    );
+    if (tabAccelerators[input.toLowerCase()]) {
+      setActiveTab(tabAccelerators[input.toLowerCase()]);
+      setFocus('tabs');
+    } else if (key.tab && !key.shift) {
+      // Flat focus order: servers -> tabs -> list -> details -> wrap to servers
+      const focusOrder: FocusArea[] =
+        activeTab === 'messages'
+          ? ['serverList', 'tabs', 'messagesList', 'messagesDetail']
+          : ['serverList', 'tabs', 'tabContentList', 'tabContentDetails'];
+      const currentIndex = focusOrder.indexOf(focus);
+      const nextIndex = (currentIndex + 1) % focusOrder.length;
+      setFocus(focusOrder[nextIndex]);
+    } else if (key.tab && key.shift) {
+      // Reverse order: servers <- tabs <- list <- details <- wrap to servers
+      const focusOrder: FocusArea[] =
+        activeTab === 'messages'
+          ? ['serverList', 'tabs', 'messagesList', 'messagesDetail']
+          : ['serverList', 'tabs', 'tabContentList', 'tabContentDetails'];
+      const currentIndex = focusOrder.indexOf(focus);
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : focusOrder.length - 1;
+      setFocus(focusOrder[prevIndex]);
+    } else if (key.upArrow || key.downArrow) {
+      // Arrow keys only work in the focused pane
+      if (focus === 'serverList') {
+        // Arrow key navigation for server list
+        if (key.upArrow) {
+          if (selectedServer === null) {
+            setSelectedServer(serverNames[serverNames.length - 1] || null);
+          } else {
+            const currentIndex = serverNames.indexOf(selectedServer);
+            const newIndex = currentIndex > 0 ? currentIndex - 1 : serverNames.length - 1;
+            setSelectedServer(serverNames[newIndex] || null);
           }
-          return; // Handled, don't let other handlers process
+        } else if (key.downArrow) {
+          if (selectedServer === null) {
+            setSelectedServer(serverNames[0] || null);
+          } else {
+            const currentIndex = serverNames.indexOf(selectedServer);
+            const newIndex = currentIndex < serverNames.length - 1 ? currentIndex + 1 : 0;
+            setSelectedServer(serverNames[newIndex] || null);
+          }
         }
-        // If focus is on tabs, tabContentList, tabContentDetails, messagesList, or messagesDetail,
-        // arrow keys will be handled by those components - don't do anything here
-      } else if (focus === 'tabs' && (key.leftArrow || key.rightArrow)) {
-        // Left/Right arrows switch tabs when tabs are focused
-        const tabs: TabType[] = ['info', 'resources', 'prompts', 'tools', 'messages', 'logging'];
-        const currentIndex = tabs.indexOf(activeTab);
-        if (key.leftArrow) {
-          const newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
-          setActiveTab(tabs[newIndex]);
-        } else if (key.rightArrow) {
-          const newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
-          setActiveTab(tabs[newIndex]);
-        }
+        return; // Handled, don't let other handlers process
       }
-      
-      // Accelerator keys for connect/disconnect (work from anywhere)
-      if (selectedServer && !showCommand) {
-        const serverState = serverStates[selectedServer];
-        if (input.toLowerCase() === 'c' && (serverState?.status === 'disconnected' || serverState?.status === 'error')) {
-          handleConnect();
-        } else if (input.toLowerCase() === 'd' && (serverState?.status === 'connected' || serverState?.status === 'connecting')) {
-          handleDisconnect();
-        }
+      // If focus is on tabs, tabContentList, tabContentDetails, messagesList, or messagesDetail,
+      // arrow keys will be handled by those components - don't do anything here
+    } else if (focus === 'tabs' && (key.leftArrow || key.rightArrow)) {
+      // Left/Right arrows switch tabs when tabs are focused
+      const tabs: TabType[] = ['info', 'resources', 'prompts', 'tools', 'messages', 'logging'];
+      const currentIndex = tabs.indexOf(activeTab);
+      if (key.leftArrow) {
+        const newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+        setActiveTab(tabs[newIndex]);
+      } else if (key.rightArrow) {
+        const newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
+        setActiveTab(tabs[newIndex]);
+      }
+    }
+    
+    // Accelerator keys for connect/disconnect (work from anywhere)
+    if (selectedServer) {
+      const serverState = serverStates[selectedServer];
+      if (input.toLowerCase() === 'c' && (serverState?.status === 'disconnected' || serverState?.status === 'error')) {
+        handleConnect();
+      } else if (input.toLowerCase() === 'd' && (serverState?.status === 'connected' || serverState?.status === 'connecting')) {
+        handleDisconnect();
       }
     }
   });
-
-  const handleCommand = (cmd: string) => {
-    const trimmedCmd = cmd.trim();
-    
-    if (trimmedCmd === '/exit' || trimmedCmd === '/quit') {
-      process.exit(0);
-    } else if (trimmedCmd.startsWith('/connect ')) {
-      const serverName = trimmedCmd.slice(9).trim();
-      if (serverNames.includes(serverName)) {
-        setSelectedServer(serverName);
-      }
-    } else if (trimmedCmd === '/refresh') {
-      // Refresh current tab - would trigger re-fetch
-      // This is handled by the tab components themselves
-    } else if (trimmedCmd === '/help') {
-      // Show help - could implement a help overlay
-    }
-  };
 
   // Calculate layout dimensions
   const headerHeight = 1;
@@ -1068,16 +1028,6 @@ function App({ configFile }: AppProps) {
           </Box>
         </Box>
       </Box>
-
-      {/* Command input overlay */}
-      {showCommand && (
-        <Box width={dimensions.width} paddingX={1}>
-          <Text>
-            <Text color="yellow">{command}</Text>
-            <Text color="gray">█</Text>
-          </Text>
-        </Box>
-      )}
 
       {/* Tool Test Modal - rendered at App level for full screen overlay */}
       {toolTestModal && (
