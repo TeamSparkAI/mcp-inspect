@@ -16,6 +16,10 @@
             "@modelcontextprotocol/server-filesystem",
             "."
             ]
+        },
+        "everything": {
+            "type": "sse",
+            "url": "http://localhost:6969/sse"
         }
     }
 }

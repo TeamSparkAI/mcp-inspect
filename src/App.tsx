@@ -774,7 +774,7 @@ function App({ configFile }: AppProps) {
       // Accelerator keys for connect/disconnect (work from anywhere)
       if (selectedServer && !showCommand) {
         const serverState = serverStates[selectedServer];
-        if (input.toLowerCase() === 'c' && serverState?.status === 'disconnected') {
+        if (input.toLowerCase() === 'c' && (serverState?.status === 'disconnected' || serverState?.status === 'error')) {
           handleConnect();
         } else if (input.toLowerCase() === 'd' && (serverState?.status === 'connected' || serverState?.status === 'connecting')) {
           handleDisconnect();
@@ -932,7 +932,7 @@ function App({ configFile }: AppProps) {
                         {getStatusSymbol(currentServerState.status)} {currentServerState.status}
                       </Text>
                       <Text> </Text>
-                      {currentServerState?.status === 'disconnected' && (
+                      {(currentServerState?.status === 'disconnected' || currentServerState?.status === 'error') && (
                         <Text color="cyan" bold>
                           [<Text underline>C</Text>onnect]
                         </Text>

@@ -11,7 +11,8 @@
     "start": "tsx tui.tsx",
     "build": "tsc",
     "dev": "tsx tui.tsx",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "everything-sse": "./scripts/run-everything-sse.sh"
   },
   "keywords": [
     "mcp",
