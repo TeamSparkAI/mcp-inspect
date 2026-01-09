@@ -1,6 +1,6 @@
 {
   "name": "mcp-inspect",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A terminal UI (TUI) inspector for Model Context Protocol (MCP) servers",
   "type": "module",
   "main": "dist/tui.js",

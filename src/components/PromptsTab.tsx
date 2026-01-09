@@ -115,7 +115,11 @@ export function PromptsTab({ prompts, client, width, height, onCountChange, focu
           <>
             {/* Fixed header */}
             <Box flexShrink={0} paddingTop={1}>
-              <Text bold backgroundColor={focusedPane === 'details' ? 'yellow' : undefined} color="cyan">
+              <Text 
+                bold 
+                backgroundColor={focusedPane === 'details' ? 'yellow' : undefined}
+                {...(focusedPane === 'details' ? {} : { color: 'cyan' })}
+              >
                 {selectedPrompt.name}
               </Text>
             </Box>

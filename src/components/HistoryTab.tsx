@@ -186,8 +186,8 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
             <Box flexDirection="row" justifyContent="space-between" flexShrink={0} paddingTop={1}>
               <Text 
                 bold 
-                color="cyan"
                 backgroundColor={focusedPane === 'details' ? 'yellow' : undefined}
+                {...(focusedPane === 'details' ? {} : { color: 'cyan' })}
               >
                 {selectedMessage.direction === 'request' && 'method' in selectedMessage.message 
                   ? selectedMessage.message.method

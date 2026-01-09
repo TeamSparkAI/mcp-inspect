@@ -133,7 +133,11 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
           <>
             {/* Fixed header */}
             <Box flexShrink={0} flexDirection="row" justifyContent="space-between" paddingTop={1}>
-              <Text bold backgroundColor={focusedPane === 'details' ? 'yellow' : undefined} color="cyan">
+              <Text 
+                bold 
+                backgroundColor={focusedPane === 'details' ? 'yellow' : undefined}
+                {...(focusedPane === 'details' ? {} : { color: 'cyan' })}
+              >
                 {selectedTool.name}
               </Text>
               {client && (

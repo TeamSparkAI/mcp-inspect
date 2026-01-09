@@ -115,7 +115,11 @@ export function ResourcesTab({ resources, client, width, height, onCountChange, 
           <>
             {/* Fixed header */}
             <Box flexShrink={0} paddingTop={1}>
-              <Text bold backgroundColor={focusedPane === 'details' ? 'yellow' : undefined} color="cyan">
+              <Text 
+                bold 
+                backgroundColor={focusedPane === 'details' ? 'yellow' : undefined}
+                {...(focusedPane === 'details' ? {} : { color: 'cyan' })}
+              >
                 {selectedResource.name || selectedResource.uri}
               </Text>
             </Box>

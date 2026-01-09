@@ -58,7 +58,7 @@ export function Tabs({ activeTab, onTabChange, width, counts = {}, focused = fal
           >
             <Text
               bold={isActive}
-              color={isActive ? 'cyan' : 'gray'}
+              {...(isActive && focused ? {} : { color: isActive ? 'cyan' : 'gray' })}
               backgroundColor={isActive && focused ? 'yellow' : undefined}
             >
               {isActive ? '▶ ' : '  '}
