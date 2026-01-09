@@ -1,6 +1,6 @@
 # mcp-inspect
 
-A terminal UI (TUI) inspector for Model Context Protocol (MCP) servers. Inspect server capabilities, resources, prompts, tools, message history, and MCP server logs, and test tools, all in an interactive terminal interface.  Similar to [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) but works from any terminal session, including inside of sandboxes or containers. 
+A terminal UI (TUI) inspector for Model Context Protocol (MCP) servers. Inspect server capabilities, resources, prompts, tools, message history, and MCP server logs, and test MCP tools, all in an interactive terminal interface.  Similar to [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) but works from any terminal session, including inside of sandboxes or containers. 
 
 ![mcp-inspect TUI](screenshots/mcp-inspector.png)
 
