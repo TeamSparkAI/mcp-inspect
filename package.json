@@ -1,6 +1,6 @@
 {
   "name": "mcp-inspect",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "A terminal UI (TUI) inspector for Model Context Protocol (MCP) servers",
   "type": "module",
   "main": "dist/tui.js",
@@ -44,6 +44,7 @@
   "homepage": "https://github.com/TeamSparkAI/mcp-inspect#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
+    "fullscreen-ink": "^0.1.0",
     "ink": "^6.6.0",
     "ink-form": "^2.0.1",
     "ink-scroll-view": "^0.3.5",

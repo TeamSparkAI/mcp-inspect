@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Box, Text, useInput, type Key } from 'ink';
+import { Box, Text, useInput, useApp, type Key } from 'ink';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
@@ -28,19 +28,37 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Read package.json to get project info
-const packagePath = join(__dirname, '..', 'package.json');
-const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
-  name: string;
-  description: string;
-  version: string;
-};
+// Strategy: Try multiple paths to handle both local dev and global install
+// - Local dev (tsx): __dirname = src/, package.json is one level up
+// - Global install: __dirname = dist/src/, package.json is two levels up
+let packagePath: string;
+let packageJson: { name: string; description: string; version: string };
+
+try {
+  // Try two levels up first (global install case)
+  packagePath = join(__dirname, '..', '..', 'package.json');
+  packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
+    name: string;
+    description: string;
+    version: string;
+  };
+} catch {
+  // Fall back to one level up (local dev case)
+  packagePath = join(__dirname, '..', 'package.json');
+  packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
+    name: string;
+    description: string;
+    version: string;
+  };
+}
 
 interface AppProps {
   configFile: string;
-  onExit?: (code?: number) => void;
 }
 
-function App({ configFile, onExit }: AppProps) {
+function App({ configFile }: AppProps) {
+  const { exit } = useApp();
+  
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('info');
   const [focus, setFocus] = useState<FocusArea>('serverList');
@@ -671,20 +689,12 @@ function App({ configFile, onExit }: AppProps) {
     }
 
     if (key.ctrl && input === 'c') {
-      if (onExit) {
-        onExit();
-      } else {
-        process.exit();
-      }
+      exit();
     }
 
     // Exit accelerators
     if (key.escape) {
-      if (onExit) {
-        onExit(0);
-      } else {
-        process.exit(0);
-      }
+      exit();
     }
     
     // Tab switching with accelerator keys (first character of tab name)
