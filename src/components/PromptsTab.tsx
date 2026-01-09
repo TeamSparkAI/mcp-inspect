@@ -11,9 +11,10 @@ interface PromptsTabProps {
   onCountChange?: (count: number) => void;
   focusedPane?: 'list' | 'details' | null;
   onViewDetails?: (prompt: any) => void;
+  modalOpen?: boolean;
 }
 
-export function PromptsTab({ prompts, client, width, height, onCountChange, focusedPane = null, onViewDetails }: PromptsTabProps) {
+export function PromptsTab({ prompts, client, width, height, onCountChange, focusedPane = null, onViewDetails, modalOpen = false }: PromptsTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -50,7 +51,7 @@ export function PromptsTab({ prompts, client, width, height, onCountChange, focu
         scrollViewRef.current?.scrollBy(viewportHeight);
       }
     }
-  }, { isActive: focusedPane === 'list' || focusedPane === 'details' });
+  }, { isActive: !modalOpen && (focusedPane === 'list' || focusedPane === 'details') });
 
   // Reset scroll when selection changes
   useEffect(() => {

@@ -12,9 +12,10 @@ interface ToolsTabProps {
   focusedPane?: 'list' | 'details' | null;
   onTestTool?: (tool: any) => void;
   onViewDetails?: (tool: any) => void;
+  modalOpen?: boolean;
 }
 
-export function ToolsTab({ tools, client, width, height, onCountChange, focusedPane = null, onTestTool, onViewDetails }: ToolsTabProps) {
+export function ToolsTab({ tools, client, width, height, onCountChange, focusedPane = null, onTestTool, onViewDetails, modalOpen = false }: ToolsTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -60,7 +61,7 @@ export function ToolsTab({ tools, client, width, height, onCountChange, focusedP
         scrollViewRef.current?.scrollBy(viewportHeight);
       }
     }
-  }, { isActive: focusedPane === 'list' || focusedPane === 'details' });
+  }, { isActive: !modalOpen && (focusedPane === 'list' || focusedPane === 'details') });
 
   // Helper to calculate content lines for a tool
   const calculateToolContentLines = (tool: any): number => {

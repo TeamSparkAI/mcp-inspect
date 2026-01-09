@@ -65,14 +65,26 @@ export function ToolTestModal({ tool, client, width, height, onClose }: ToolTest
     };
   }, []);
 
-  // Handle escape to close
+  // Handle all input when modal is open - prevents input from reaching underlying components
+  // When in form mode, only handle escape (form handles its own input)
+  // When in results mode, handle scrolling keys
   useInput(
     (input: string, key: Key) => {
+      // Always handle escape to close modal
       if (key.escape) {
         setState('form');
         setResult(null);
         onClose();
-      } else if (state === 'results') {
+        return;
+      }
+      
+      if (state === 'form') {
+        // In form mode, let the form handle all other input
+        // Don't process anything else - this prevents input from reaching underlying components
+        return;
+      }
+      
+      if (state === 'results') {
         // Allow scrolling in results view
         if (key.downArrow) {
           scrollViewRef.current?.scrollBy(1);

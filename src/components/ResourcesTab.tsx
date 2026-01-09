@@ -11,9 +11,10 @@ interface ResourcesTabProps {
   onCountChange?: (count: number) => void;
   focusedPane?: 'list' | 'details' | null;
   onViewDetails?: (resource: any) => void;
+  modalOpen?: boolean;
 }
 
-export function ResourcesTab({ resources, client, width, height, onCountChange, focusedPane = null, onViewDetails }: ResourcesTabProps) {
+export function ResourcesTab({ resources, client, width, height, onCountChange, focusedPane = null, onViewDetails, modalOpen = false }: ResourcesTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -50,7 +51,7 @@ export function ResourcesTab({ resources, client, width, height, onCountChange, 
         scrollViewRef.current?.scrollBy(viewportHeight);
       }
     }
-  }, { isActive: focusedPane === 'list' || focusedPane === 'details' });
+  }, { isActive: !modalOpen && (focusedPane === 'list' || focusedPane === 'details') });
 
   // Reset scroll when selection changes
   useEffect(() => {

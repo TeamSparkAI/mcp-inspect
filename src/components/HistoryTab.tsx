@@ -11,9 +11,10 @@ interface HistoryTabProps {
   onCountChange?: (count: number) => void;
   focusedPane?: 'messages' | 'details' | null;
   onViewDetails?: (message: MessageEntry) => void;
+  modalOpen?: boolean;
 }
 
-export function HistoryTab({ serverName, messages, width, height, onCountChange, focusedPane = null, onViewDetails }: HistoryTabProps) {
+export function HistoryTab({ serverName, messages, width, height, onCountChange, focusedPane = null, onViewDetails, modalOpen = false }: HistoryTabProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [leftScrollOffset, setLeftScrollOffset] = useState<number>(0);
   const scrollViewRef = useRef<ScrollViewRef>(null);
@@ -76,7 +77,7 @@ export function HistoryTab({ serverName, messages, width, height, onCountChange,
         scrollViewRef.current?.scrollBy(viewportHeight);
       }
     }
-  }, { isActive: focusedPane !== undefined });
+  }, { isActive: !modalOpen && focusedPane !== undefined });
 
   // Update count when messages change
   React.useEffect(() => {

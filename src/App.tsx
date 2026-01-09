@@ -963,6 +963,7 @@ function App({ configFile }: AppProps) {
                       title: `Resource: ${resource.name || resource.uri || 'Unknown'}`,
                       content: renderResourceDetails(resource)
                     })}
+                    modalOpen={!!(toolTestModal || detailsModal)}
                   />
                 )}
                 {activeTab === 'prompts' && (
@@ -978,6 +979,7 @@ function App({ configFile }: AppProps) {
                       title: `Prompt: ${prompt.name || 'Unknown'}`,
                       content: renderPromptDetails(prompt)
                     })}
+                    modalOpen={!!(toolTestModal || detailsModal)}
                   />
                 )}
                 {activeTab === 'tools' && (
@@ -994,6 +996,7 @@ function App({ configFile }: AppProps) {
                       title: `Tool: ${tool.name || 'Unknown'}`,
                       content: renderToolDetails(tool)
                     })}
+                    modalOpen={!!(toolTestModal || detailsModal)}
                   />
                 )}
                 {activeTab === 'messages' && (
@@ -1004,6 +1007,7 @@ function App({ configFile }: AppProps) {
                     height={contentHeight}
                     onCountChange={(count) => setTabCounts(prev => ({ ...prev, messages: count }))}
                     focusedPane={focus === 'messagesDetail' ? 'details' : focus === 'messagesList' ? 'messages' : null}
+                    modalOpen={!!(toolTestModal || detailsModal)}
                     onViewDetails={(message) => {
                       const label = message.direction === 'request' && 'method' in message.message
                         ? message.message.method
