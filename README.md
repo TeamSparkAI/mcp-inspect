@@ -4,6 +4,8 @@ A terminal UI (TUI) inspector for Model Context Protocol (MCP) servers. Inspect 
 
 ![mcp-inspect TUI](screenshots/mcp-inspector.png)
 
+> **🎥 Watch the Demo:** Check out the [**mcp-inspect Introduction and Demo**](https://youtu.be/7dvSA8VRIrs) video to see how to inspect MCP servers, test tools, browse resources, and monitor server activity—all from your terminal.
+
 ## Installation
 
 ```bash
