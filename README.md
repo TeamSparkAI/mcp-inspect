@@ -87,6 +87,17 @@ Supported transport types:
 ### Tool Testing
 - `Enter` - Test tool (from tool list or details view)
 
+## GitHub Pages
+
+The `docs/` folder is set up for GitHub Pages so you can publish a static site and a **Client ID Metadata Document (CIMD)** for MCP auth.
+
+1. **Enable Pages**: In the repo, go to **Settings → Pages**. Under "Build and deployment", set **Source** to "Deploy from a branch", **Branch** to `main` (or your default), and **Folder** to `/docs`.
+2. After deployment, the site is at `https://<owner>.github.io/mcp-inspect/` and the CIMD at `https://<owner>.github.io/mcp-inspect/.well-known/auth/client-metadata.json`.
+
+If your GitHub user/org differs from `teamsparkai`, update `client_id`, `client_uri`, and `logo_uri` in `docs/.well-known/auth/client-metadata.json` to match your Pages URL.
+
+Internal design/todo docs are in `internal/`.
+
 ## Development
 
 ```bash

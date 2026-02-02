@@ -1,0 +1,16 @@
+{
+  "client_id": "https://teamsparkai.github.io/mcp-inspect/.well-known/auth/client-metadata.json",
+  "client_name": "MCP Inspect TUI",
+  "client_uri": "https://github.com/TeamSparkAI/mcp-inspect",
+  "logo_uri": "https://teamsparkai.github.io/mcp-inspect/assets/mcp.svg",
+  "redirect_uris": [
+    "http://127.0.0.1/oauth/callback",
+    "http://localhost/oauth/callback"
+  ],
+  "grant_types": [
+    "authorization_code", 
+    "refresh_token"
+  ],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}
