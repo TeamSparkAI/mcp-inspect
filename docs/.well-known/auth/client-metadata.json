@@ -4,8 +4,8 @@
   "client_uri": "https://github.com/TeamSparkAI/mcp-inspect",
   "logo_uri": "https://teamsparkai.github.io/mcp-inspect/assets/mcp.svg",
   "redirect_uris": [
-    "http://127.0.0.1/oauth/callback",
-    "http://localhost/oauth/callback"
+    "http://127.0.0.1:55555/oauth/callback",
+    "http://localhost:55555/oauth/callback"
   ],
   "grant_types": [
     "authorization_code", 
