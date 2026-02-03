@@ -12,5 +12,6 @@
     "refresh_token"
   ],
   "response_types": ["code"],
-  "token_endpoint_auth_method": "none"
+  "token_endpoint_auth_method": "none",
+  "application_type": "native"
 }
